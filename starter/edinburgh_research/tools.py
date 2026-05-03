@@ -320,7 +320,7 @@ def build_tool_registry(session: Session) -> ToolRegistry:
     reg.register(
         _RegisteredTool(
             name="calculate_cost",
-            description="Compute total cost. The venue_id MUST be obtained from the venue_search tool output. Do NOT guess it. This is an intermediate step; do NOT use write_file to save this result, rely on session memory.",
+            description="Compute total cost. The venue_id MUST be obtained from the venue_search tool output. Do NOT guess it. This is an intermediate step; do NOT use write_file to save this result, rely on session memory and do not complete the session.",
             fn=_calculate_cost_adapter,
             parameters_schema={
                 "type": "object",
@@ -385,11 +385,7 @@ def build_tool_registry(session: Session) -> ToolRegistry:
                     event_details.setdefault("deposit_required_gbp", out.get("deposit_required_gbp"))
                     break
         
-        # 4. Fill in defaults for date/time/party if missing
-        event_details.setdefault("date", "2026-04-25")
-        event_details.setdefault("time", "19:30")
-        event_details.setdefault("party_size", 6)
-
+        print(f"ouptut before call {event_details}")
         return generate_flyer(session, event_details)
 
     reg.register(
