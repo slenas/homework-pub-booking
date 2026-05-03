@@ -18,6 +18,7 @@ import json
 from pathlib import Path
 
 from sovereign_agent.errors import ToolError
+from sovereign_agent.memory import MemoryStore, MemoryType
 from sovereign_agent.session.directory import Session
 from sovereign_agent.tools.registry import ToolRegistry, ToolResult, _RegisteredTool
 
@@ -229,12 +230,30 @@ def build_tool_registry(session: Session) -> ToolRegistry:
     from sovereign_agent.tools.builtin import make_builtin_registry
     reg = make_builtin_registry(session)
 
+    store = MemoryStore(session)
+
+    def _save_to_memory(tool_name: str, result: ToolResult):
+        if result.success:
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            store.write_fact(
+                MemoryType.EPISODIC,
+                f"{tool_name}_{timestamp}",
+                result.summary,
+                metadata={"tool": tool_name, "output": result.output}
+            )
+
     # venue_search
+    def _venue_search_adapter(near: str, party_size: int, budget_max_gbp: int = 1000) -> ToolResult:
+        res = venue_search(near, party_size, budget_max_gbp)
+        _save_to_memory("venue_search", res)
+        return res
+
     reg.register(
         _RegisteredTool(
             name="venue_search",
             description="Search Edinburgh venues by area, party size, and max budget.",
-            fn=venue_search,
+            fn=_venue_search_adapter,
             parameters_schema={
                 "type": "object",
                 "properties": {
@@ -247,21 +266,20 @@ def build_tool_registry(session: Session) -> ToolRegistry:
             returns_schema={"type": "object"},
             is_async=False,
             parallel_safe=True,
-            examples=[
-                {
-                    "input": {"near": "Haymarket", "party_size": 6, "budget_max_gbp": 800},
-                    "output": {"count": 1, "results": [{"id": "haymarket_tap"}]},
-                }
-            ],
         )
     )
 
     # get_weather
+    def _get_weather_adapter(city: str, date: str) -> ToolResult:
+        res = get_weather(city, date)
+        _save_to_memory("get_weather", res)
+        return res
+
     reg.register(
         _RegisteredTool(
             name="get_weather",
-            description="Get scripted weather for a city on a YYYY-MM-DD date. Do not complete the task, just return the weather for the requested date.",
-            fn=get_weather,
+            description="Get scripted weather. This is an INTERMEDIATE step; you must proceed to cost calculation and flyer generation after this.",
+            fn=_get_weather_adapter,
             parameters_schema={
                 "type": "object",
                 "properties": {
@@ -273,21 +291,26 @@ def build_tool_registry(session: Session) -> ToolRegistry:
             returns_schema={"type": "object"},
             is_async=False,
             parallel_safe=True,
-            # examples=[
-            #     {
-            #         "input": {"city": "Edinburgh", "date": "2026-04-25"},
-            #         "output": {"condition": "cloudy", "temperature_c": 12},
-            #     }
-            # ],
+            examples=[
+                {
+                    "input": {"city": "Edinburgh", "date": "2026-04-25"},
+                    "output": {"condition": "cloudy", "temperature_c": 12},
+                }
+            ],
         )
     )
 
     # calculate_cost
+    def _calculate_cost_adapter(venue_id: str, party_size: int, duration_hours: int, catering_tier: str = "bar_snacks") -> ToolResult:
+        res = calculate_cost(venue_id, party_size, duration_hours, catering_tier)
+        _save_to_memory("calculate_cost", res)
+        return res
+
     reg.register(
         _RegisteredTool(
             name="calculate_cost",
-            description="Compute total cost and deposit for a booking. the venue_id can be found in the venue_search result output and summary. Look there. Do not complete the task, just return the cost.",
-            fn=calculate_cost,
+            description="Compute total cost. After this, you MUST call generate_flyer. Do NOT call complete_task yet.",
+            fn=_calculate_cost_adapter,
             parameters_schema={
                 "type": "object",
                 "properties": {
@@ -305,26 +328,28 @@ def build_tool_registry(session: Session) -> ToolRegistry:
             returns_schema={"type": "object"},
             is_async=False,
             parallel_safe=True,
-            # examples=[
-            #     {
-            #         "input": {
-            #             "venue_id": "haymarket_tap",
-            #             "party_size": 6,
-            #             "duration_hours": 3,
-            #         },
-            #         "output": {"total_gbp": 540, "deposit_required_gbp": 0},
-            #     }
-            # ],
+            examples=[
+                {
+                    "input": {
+                        "venue_id": "haymarket_tap",
+                        "party_size": 6,
+                        "duration_hours": 3,
+                    },
+                    "output": {"total_gbp": 540, "deposit_required_gbp": 0},
+                }
+            ],
         )
     )
 
     # generate_flyer — parallel_safe=False because it writes a file
     def _flyer_adapter(event_details: dict) -> ToolResult:
-        return generate_flyer(session, event_details)
+        res = generate_flyer(session, event_details)
+        _save_to_memory("generate_flyer", res)
+        return res
 
     reg.register(
         _RegisteredTool(
-            name="generate_flyer. All ther requested information can be found in the previous tool outputs",
+            name="generate_flyer",
             description="Write an HTML flyer for the event to workspace/flyer.html.",
             fn=_flyer_adapter,
             parameters_schema={
@@ -335,20 +360,27 @@ def build_tool_registry(session: Session) -> ToolRegistry:
             returns_schema={"type": "object"},
             is_async=False,
             parallel_safe=False,
-            # examples=[
-            #     {
-            #         "input": {
-            #             "event_details": {
-            #                 "venue_name": "Haymarket Tap",
-            #                 "date": "2026-04-25",
-            #                 "party_size": 6,
-            #             }
-            #         },
-            #         "output": {"path": "workspace/flyer.html"},
-            #     }
-            # ],
+            examples=[
+                {
+                    "input": {
+                        "event_details": {
+                            "venue_name": "Haymarket Tap",
+                            "date": "2026-04-25",
+                            "party_size": 6,
+                        }
+                    },
+                    "output": {"path": "workspace/flyer.html"},
+                }
+            ],
         )
     )
+
+    # Override complete_task description to prevent early exits
+    try:
+        complete_tool = reg.get("complete_task")
+        complete_tool.description = "Mark the FULL session as complete. DO NOT call this until generate_flyer has been run and workspace/flyer.html is created."
+    except Exception:
+        pass
 
     return reg
 
