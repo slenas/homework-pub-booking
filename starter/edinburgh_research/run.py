@@ -247,7 +247,12 @@ async def run_scenario(real: bool) -> int:
             executor=DefaultExecutor(model=executor_model, client=client, tools=tools),  # type: ignore[arg-type]
         )
 
-        result = await half.run(session, {"task": "research Edinburgh venue and write flyer"})
+        # This is required to pass relevant context to the planner as the create session in only saving the task in SESSION.md
+        # with the  half.run having no visibility into the task if left as it was
+        with open(str(session.directory) + "/SESSION.md", "r", encoding="utf-8") as f:
+            task = f.read()
+        
+        result = await half.run(session, {"task": task})
         print(f"\nLoop half outcome: {result.next_action}")
         print(f"  summary: {result.summary}")
 

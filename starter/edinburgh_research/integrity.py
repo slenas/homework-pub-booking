@@ -98,11 +98,14 @@ def extract_testid_facts(text: str) -> dict[str, str]:
 
 def fact_appears_in_log(fact: Any, log: list[ToolCallRecord] | None = None) -> bool:
     records = log if log is not None else _TOOL_CALL_LOG
-    target = str(fact).lower().strip("£°c ")
+    def _normalize(s: Any) -> str:
+        return " ".join(str(s).lower().strip("£°c ").split())
+
+    target = _normalize(fact)
 
     def _scan(obj: Any) -> bool:
         if isinstance(obj, (str, int, float)):
-            return str(obj).lower().strip("£°c ") == target
+            return _normalize(obj) == target
         if isinstance(obj, dict):
             return any(_scan(v) for v in obj.values())
         if isinstance(obj, (list, tuple, set)):
@@ -120,6 +123,13 @@ def verify_dataflow(flyer_content: str) -> IntegrityResult:
         return IntegrityResult(ok=True, summary="no facts to verify (empty flyer)")
 
     facts_to_check: list[str] = []
+
+    # 1. Preferred path: use the structured data-testid tags
+    # This catches venue_name, venue_address, etc.
+    testid_facts = extract_testid_facts(flyer_content)
+    facts_to_check.extend(testid_facts.values())
+
+    # 2. Supplemental path: regex matching for loose text
     facts_to_check.extend(extract_money_facts(flyer_content))
     facts_to_check.extend(extract_temperature_facts(flyer_content))
     facts_to_check.extend(extract_condition_facts(flyer_content))

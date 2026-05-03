@@ -9,7 +9,7 @@
 sessions/
 demo_sessions_*/
 *.session.json
-
+examples/*
 # ── Python standard ──────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
