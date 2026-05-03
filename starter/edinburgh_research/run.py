@@ -214,6 +214,7 @@ async def run_scenario(real: bool) -> int:
                 "  5. complete_task(result={'flyer': 'workspace/flyer.html', ...})\n\n"
                 "Do NOT call complete_task until you have called generate_flyer and make this instruction explicit to every subgoal description.\n"
                 "Do NOT use write_file to save intermediate results (like cost calculations). "
+                "Make sure to include in all the subgoal descriptions all the relevant information that are known in advance from the task and not depending on tools calls outputs."
                 "The scenario is graded by the existence of workspace/flyer.html, "
                 "not by your final text response. The flyer is HTML — exact tool "
                 "names and argument shapes are in each tool's docstring; call them "

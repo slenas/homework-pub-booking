@@ -370,9 +370,13 @@ def build_tool_registry(session: Session) -> ToolRegistry:
                 if res:
                     event_details["venue_name"] = res[0].get("name")
                     event_details["venue_address"] = res[0].get("address")
+                if out.get("party_size"):
+                    event_details["party_size"] = out["party_size"]
             elif tool == "get_weather":
                 event_details["condition"] = out.get("condition")
                 event_details["temperature_c"] = out.get("temperature_c")
+                if out.get("date"):
+                    event_details["date"] = out["date"]
             elif tool == "calculate_cost":
                 event_details["total_gbp"] = out.get("total_gbp")
                 event_details["deposit_required_gbp"] = out.get("deposit_required_gbp")
