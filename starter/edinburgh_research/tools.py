@@ -302,6 +302,17 @@ def build_tool_registry(session: Session) -> ToolRegistry:
 
     # calculate_cost
     def _calculate_cost_adapter(venue_id: str, party_size: int, duration_hours: int, catering_tier: str = "bar_snacks") -> ToolResult:
+        # User requested: retrieve from memory if possible.
+        # We check if the provided venue_id is a placeholder or if we can find a better one in memory.
+        if venue_id.lower() in ("latest", "auto", "from_memory") or venue_id.startswith("V"):
+            facts = store.list_facts(memory_type=MemoryType.EPISODIC)
+            for fact in reversed(facts):
+                if fact.metadata.get("tool") == "venue_search":
+                    results = fact.metadata.get("output", {}).get("results", [])
+                    if results:
+                        venue_id = results[0]["id"]
+                        break
+
         res = calculate_cost(venue_id, party_size, duration_hours, catering_tier)
         _save_to_memory("calculate_cost", res)
         return res
