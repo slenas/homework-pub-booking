@@ -327,7 +327,7 @@ def build_tool_registry(session: Session) -> ToolRegistry:
             },
             returns_schema={"type": "object"},
             is_async=False,
-            parallel_safe=False,
+            parallel_safe=True,
             # examples=[
             #     {
             #         "input": {
@@ -341,6 +341,11 @@ def build_tool_registry(session: Session) -> ToolRegistry:
         )
     )
 
+    # generate_flyer — parallel_safe=False because it writes a file
+    def _flyer_adapter(event_details: dict) -> ToolResult:
+        # Note: we do NOT save this to episodic memory as it's the last step.
+        return generate_flyer(session, event_details)
+
     reg.register(
         _RegisteredTool(
             name="generate_flyer",
@@ -349,7 +354,7 @@ def build_tool_registry(session: Session) -> ToolRegistry:
                 "venue_name, venue_address, date, time, party_size, condition, temperature_c, total_gbp, deposit_required_gbp. "
                 "Extract these from previous tool outputs (venue_search, get_weather, calculate_cost)."
             ),
-            fn=generate_flyer,
+            fn=_flyer_adapter,
             parameters_schema={
                 "type": "object",
                 "properties": {"event_details": {"type": "object"}},
