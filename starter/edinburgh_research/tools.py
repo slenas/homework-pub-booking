@@ -304,14 +304,14 @@ def build_tool_registry(session: Session) -> ToolRegistry:
     def _calculate_cost_adapter(venue_id: str, party_size: int, duration_hours: int, catering_tier: str = "bar_snacks") -> ToolResult:
         # User requested: retrieve from memory if possible.
         # We check if the provided venue_id is empty, a placeholder, or a hallucinated ID (like V_12345).
-        if not venue_id or venue_id.lower() in ("latest", "auto", "from_memory") or venue_id.startswith("V"):
-            facts = store.list_facts(memory_type=MemoryType.EPISODIC)
-            for fact in reversed(facts):
-                if fact.metadata.get("tool") == "venue_search":
-                    results = fact.metadata.get("output", {}).get("results", [])
-                    if results:
-                        venue_id = results[0]["id"]
-                        break
+        
+        facts = store.list_facts(memory_type=MemoryType.EPISODIC)
+        for fact in reversed(facts):
+            if fact.metadata.get("tool") == "venue_search":
+                results = fact.metadata.get("output", {}).get("results", [])
+                if results:
+                    venue_id = results[0]["id"]
+                    break
 
         res = calculate_cost(venue_id, party_size, duration_hours, catering_tier)
         _save_to_memory("calculate_cost", res)
@@ -354,38 +354,29 @@ def build_tool_registry(session: Session) -> ToolRegistry:
 
     # generate_flyer — parallel_safe=False because it writes a file
     def _flyer_adapter(event_details: dict) -> ToolResult:
-        # Robustness: populate missing fields from episodic memory
+        # TRUTH-FIRST: populate fields from episodic memory, overwriting hallucinations
         facts = store.list_facts(memory_type=MemoryType.EPISODIC)
         
-        # 1. Look for venue data
-        if not event_details.get("venue_name") or not event_details.get("venue_address"):
-            for fact in reversed(facts):
-                if fact.metadata.get("tool") == "venue_search":
-                    res = fact.metadata.get("output", {}).get("results", [])
-                    if res:
-                        event_details.setdefault("venue_name", res[0].get("name"))
-                        event_details.setdefault("venue_address", res[0].get("address"))
-                        break
-        
-        # 2. Look for weather data
-        if not event_details.get("condition") or not event_details.get("temperature_c"):
-            for fact in reversed(facts):
-                if fact.metadata.get("tool") == "get_weather":
-                    out = fact.metadata.get("output", {})
-                    event_details.setdefault("condition", out.get("condition"))
-                    event_details.setdefault("temperature_c", out.get("temperature_c"))
-                    break
-        
-        # 3. Look for cost data
-        if not event_details.get("total_gbp"):
-            for fact in reversed(facts):
-                if fact.metadata.get("tool") == "calculate_cost":
-                    out = fact.metadata.get("output", {})
-                    event_details.setdefault("total_gbp", out.get("total_gbp"))
-                    event_details.setdefault("deposit_required_gbp", out.get("deposit_required_gbp"))
-                    break
-        
-        print(f"ouptut before call {event_details}")
+        seen_tools = set()
+        for fact in reversed(facts):
+            tool = fact.metadata.get("tool")
+            if not tool or tool in seen_tools:
+                continue
+            seen_tools.add(tool)
+            
+            out = fact.metadata.get("output", {})
+            if tool == "venue_search":
+                res = out.get("results", [])
+                if res:
+                    event_details["venue_name"] = res[0].get("name")
+                    event_details["venue_address"] = res[0].get("address")
+            elif tool == "get_weather":
+                event_details["condition"] = out.get("condition")
+                event_details["temperature_c"] = out.get("temperature_c")
+            elif tool == "calculate_cost":
+                event_details["total_gbp"] = out.get("total_gbp")
+                event_details["deposit_required_gbp"] = out.get("deposit_required_gbp")
+
         return generate_flyer(session, event_details)
 
     reg.register(
@@ -394,7 +385,7 @@ def build_tool_registry(session: Session) -> ToolRegistry:
             description=(
                 "Write an HTML flyer to workspace/flyer.html. The event_details dictionary MUST contain these EXACT keys: "
                 "venue_name, venue_address, date, time, party_size, condition, temperature_c, total_gbp, deposit_required_gbp. "
-                "Extract these from previous tool outputs (venue_search, get_weather, calculate_cost)."
+                "Extract these from previous tool outputs (venue_search, get_weather, calculate_cost) and the session memory. Do not come up with random values."
             ),
             fn=_flyer_adapter,
             parameters_schema={
