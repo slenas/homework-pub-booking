@@ -291,12 +291,12 @@ def build_tool_registry(session: Session) -> ToolRegistry:
             returns_schema={"type": "object"},
             is_async=False,
             parallel_safe=True,
-            examples=[
-                {
-                    "input": {"city": "Edinburgh", "date": "2026-04-25"},
-                    "output": {"condition": "cloudy", "temperature_c": 12},
-                }
-            ],
+            # examples=[
+            #     {
+            #         "input": {"city": "Edinburgh", "date": "2026-04-25"},
+            #         "output": {"condition": "cloudy", "temperature_c": 12},
+            #     }
+            # ],
         )
     )
 
@@ -327,24 +327,19 @@ def build_tool_registry(session: Session) -> ToolRegistry:
             },
             returns_schema={"type": "object"},
             is_async=False,
-            parallel_safe=True,
-            examples=[
-                {
-                    "input": {
-                        "venue_id": "haymarket_tap",
-                        "party_size": 6,
-                        "duration_hours": 3,
-                    },
-                    "output": {"total_gbp": 540, "deposit_required_gbp": 0},
-                }
-            ],
+            parallel_safe=False,
+            # examples=[
+            #     {
+            #         "input": {
+            #             "venue_id": "haymarket_tap",
+            #             "party_size": 6,
+            #             "duration_hours": 3,
+            #         },
+            #         "output": {"total_gbp": 540, "deposit_required_gbp": 0},
+            #     }
+            # ],
         )
     )
-
-    # generate_flyer — parallel_safe=False because it writes a file
-    def _flyer_adapter(event_details: dict) -> ToolResult:
-        # Note: we do NOT save this to episodic memory as it's the last step.
-        return generate_flyer(session, event_details)
 
     reg.register(
         _RegisteredTool(
@@ -354,7 +349,7 @@ def build_tool_registry(session: Session) -> ToolRegistry:
                 "venue_name, venue_address, date, time, party_size, condition, temperature_c, total_gbp, deposit_required_gbp. "
                 "Extract these from previous tool outputs (venue_search, get_weather, calculate_cost)."
             ),
-            fn=_flyer_adapter,
+            fn=generate_flyer,
             parameters_schema={
                 "type": "object",
                 "properties": {"event_details": {"type": "object"}},
@@ -363,18 +358,18 @@ def build_tool_registry(session: Session) -> ToolRegistry:
             returns_schema={"type": "object"},
             is_async=False,
             parallel_safe=False,
-            examples=[
-                {
-                    "input": {
-                        "event_details": {
-                            "venue_name": "Haymarket Tap",
-                            "date": "2026-04-25",
-                            "party_size": 6,
-                        }
-                    },
-                    "output": {"path": "workspace/flyer.html"},
-                }
-            ],
+            # examples=[
+            #     {
+            #         "input": {
+            #             "event_details": {
+            #                 "venue_name": "Haymarket Tap",
+            #                 "date": "2026-04-25",
+            #                 "party_size": 6,
+            #             }
+            #         },
+            #         "output": {"path": "workspace/flyer.html"},
+            #     }
+            # ],
         )
     )
 
