@@ -309,7 +309,7 @@ def build_tool_registry(session: Session) -> ToolRegistry:
     reg.register(
         _RegisteredTool(
             name="calculate_cost",
-            description="Compute total cost. After this, you MUST call generate_flyer. Do NOT call complete_task yet.",
+            description="Compute total cost. The venue_id MUST be obtained from the venue_search tool output. Do NOT guess it. This is an intermediate step; do NOT use write_file to save this result, rely on session memory.",
             fn=_calculate_cost_adapter,
             parameters_schema={
                 "type": "object",
@@ -343,14 +343,17 @@ def build_tool_registry(session: Session) -> ToolRegistry:
 
     # generate_flyer — parallel_safe=False because it writes a file
     def _flyer_adapter(event_details: dict) -> ToolResult:
-        res = generate_flyer(session, event_details)
-        _save_to_memory("generate_flyer", res)
-        return res
+        # Note: we do NOT save this to episodic memory as it's the last step.
+        return generate_flyer(session, event_details)
 
     reg.register(
         _RegisteredTool(
             name="generate_flyer",
-            description="Write an HTML flyer for the event to workspace/flyer.html.",
+            description=(
+                "Write an HTML flyer to workspace/flyer.html. The event_details dictionary MUST contain these EXACT keys: "
+                "venue_name, venue_address, date, time, party_size, condition, temperature_c, total_gbp, deposit_required_gbp. "
+                "Extract these from previous tool outputs (venue_search, get_weather, calculate_cost)."
+            ),
             fn=_flyer_adapter,
             parameters_schema={
                 "type": "object",
