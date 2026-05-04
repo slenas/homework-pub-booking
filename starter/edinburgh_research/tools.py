@@ -434,6 +434,56 @@ def build_tool_registry(session: Session) -> ToolRegistry:
         )
     )
 
+    # handoff_to_structured
+    try:
+        orig_handoff = reg.get("handoff_to_structured")
+
+        def _handoff_adapter(reason: str, context: str, data: dict) -> ToolResult:
+            # Truth-First: enrich data from memory
+            facts = store.list_facts(memory_type=MemoryType.EPISODIC)
+
+            # Resolve venue_id
+            if not data.get("venue_id"):
+                for fact in reversed(facts):
+                    if fact.metadata.get("tool") == "venue_search":
+                        results = fact.metadata.get("output", {}).get("results", [])
+                        if results:
+                            data["venue_id"] = results[0]["id"]
+                            break
+
+            # Resolve deposit
+            if not data.get("deposit"):
+                for fact in reversed(facts):
+                    if fact.metadata.get("tool") == "calculate_cost":
+                        out = fact.metadata.get("output", {})
+                        if out.get("deposit_required_gbp") is not None:
+                            data["deposit"] = f"£{out['deposit_required_gbp']}"
+                            break
+
+            # Resolve date/time/party_size from SESSION.md if missing
+            session_file = session.directory / "SESSION.md"
+            if session_file.exists():
+                content = session_file.read_text(encoding="utf-8")
+                import re
+                if not data.get("date"):
+                    m = re.search(r"date:\s*(\d{4}-\d{2}-\d{2})", content)
+                    if m:
+                        data["date"] = m.group(1)
+                if not data.get("time"):
+                    m = re.search(r"time:\s*(\d{2}:\d{2})", content)
+                    if m:
+                        data["time"] = m.group(1)
+                if not data.get("party_size"):
+                    m = re.search(r"party size:\s*(\d+)", content)
+                    if m:
+                        data["party_size"] = int(m.group(1))
+
+            return orig_handoff.fn(reason=reason, context=context, data=data)
+
+        orig_handoff.fn = _handoff_adapter
+    except Exception:
+        pass
+
     # Override complete_task description to prevent early exits
     try:
         complete_tool = reg.get("complete_task")

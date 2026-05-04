@@ -176,6 +176,50 @@ class HandoffBridge:
 # ---------------------------------------------------------------------------
 def build_forward_handoff(session: Session, loop_result: HalfResult) -> Handoff:
     """Package a loop result into a forward-handoff payload for structured."""
+    from sovereign_agent.memory import MemoryStore, MemoryType
+    import re
+
+    store = MemoryStore(session)
+    facts = store.list_facts(memory_type=MemoryType.EPISODIC)
+
+    # Base data from tool call or loop output
+    data = (loop_result.handoff_payload or {}).get("data") or dict(loop_result.output)
+
+    # Truth-First Recovery: if venue_id is missing, fish it from venue_search
+    if not data.get("venue_id"):
+        for fact in reversed(facts):
+            if fact.metadata.get("tool") == "venue_search":
+                results = fact.metadata.get("output", {}).get("results", [])
+                if results:
+                    data["venue_id"] = results[0]["id"]
+                    break
+
+    # Recovery: deposit from calculate_cost
+    if not data.get("deposit"):
+        for fact in reversed(facts):
+            if fact.metadata.get("tool") == "calculate_cost":
+                out = fact.metadata.get("output", {})
+                if out.get("deposit_required_gbp") is not None:
+                    data["deposit"] = f"£{out['deposit_required_gbp']}"
+                    break
+
+    # Recovery: date/party_size from session task
+    session_file = session.directory / "SESSION.md"
+    if session_file.exists():
+        content = session_file.read_text(encoding="utf-8")
+        if not data.get("date"):
+            m = re.search(r"date:\s*(\d{4}-\d{2}-\d{2})", content)
+            if m:
+                data["date"] = m.group(1)
+        if not data.get("party_size"):
+            m = re.search(r"party size:\s*(\d+)", content)
+            if m:
+                data["party_size"] = int(m.group(1))
+        if not data.get("time"):
+            m = re.search(r"time:\s*(\d{2}:\d{2})", content)
+            if m:
+                data["time"] = m.group(1)
+
     return Handoff(
         from_half="loop",
         to_half="structured",
@@ -183,7 +227,7 @@ def build_forward_handoff(session: Session, loop_result: HalfResult) -> Handoff:
         session_id=session.session_id,
         reason="loop-half requested confirmation",
         context=loop_result.summary,
-        data=(loop_result.handoff_payload or {}).get("data") or loop_result.output,
+        data=data,
         return_instructions=(
             "If you cannot confirm (party too large, deposit too high, etc.), "
             "respond with next_action=escalate and include a human-readable "

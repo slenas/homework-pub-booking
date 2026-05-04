@@ -125,7 +125,20 @@ async def run_scenario(real: bool) -> int:
     with example_sessions_dir("ex7-handoff-bridge", persist=real) as sessions_root:
         session = create_session(
             scenario="ex7-handoff-bridge",
-            task="Book a venue for 12 people in Haymarket, Friday 19:30.",
+            task=(
+                "Book a venue for 12 people in Haymarket, Saturday 2026-04-25 at 19:30.\n\n"
+                "REQUIRED workflow:\n"
+                "  1. Use venue_search(near='Haymarket', party_size=12) to find candidates.\n"
+                "  2. Choose a candidate (e.g. haymarket_tap) and use calculate_cost for it.\n"
+                "  3. Call handoff_to_structured to commit the booking.\n\n"
+                "CRITICAL: The 'data' argument of handoff_to_structured MUST NOT be empty. "
+                "It must contain:\n"
+                "  - venue_id: the ID of the chosen venue (e.g. 'haymarket_tap')\n"
+                "  - date: '2026-04-25'\n"
+                "  - time: '19:30'\n"
+                "  - party_size: 12\n"
+                "  - deposit: the deposit amount from calculate_cost\n"
+            ),
             sessions_dir=sessions_root,
         )
         print(f"Session {session.session_id}")
@@ -136,14 +149,26 @@ async def run_scenario(real: bool) -> int:
         if not real:
             server, _thread, mock_url = spawn_mock_rasa(port=5906)
             rasa_half = RasaStructuredHalf(rasa_url=mock_url)
+            print("  LLM: FakeLLMClient (offline, scripted)")
+            client = _build_fake_client_two_rounds()
+            planner_model = executor_model = "fake"
         else:
+            from sovereign_agent.config import Config
+            from sovereign_agent._internal.llm_client import OpenAICompatibleClient
+            cfg = Config.from_env()
+            print(f"  LLM: {cfg.llm_base_url} (live)")
+            client = OpenAICompatibleClient(
+                base_url=cfg.llm_base_url,
+                api_key_env=cfg.llm_api_key_env,
+            )
             rasa_half = RasaStructuredHalf()
+            planner_model = cfg.llm_planner_model
+            executor_model = cfg.llm_executor_model
 
-        client = _build_fake_client_two_rounds()
         tools = build_tool_registry(session)
         loop_half = LoopHalf(
-            planner=DefaultPlanner(model="fake", client=client),
-            executor=DefaultExecutor(model="fake", client=client, tools=tools),  # type: ignore[arg-type]
+            planner=DefaultPlanner(model=planner_model, client=client),
+            executor=DefaultExecutor(model=executor_model, client=client, tools=tools),  # type: ignore[arg-type]
         )
         bridge = HandoffBridge(
             loop_half=loop_half,
@@ -152,7 +177,8 @@ async def run_scenario(real: bool) -> int:
         )
 
         try:
-            result = await bridge.run(session, {"task": "book for party of 12 in Haymarket"})
+            task_text = (session.directory / "SESSION.md").read_text(encoding="utf-8")
+            result = await bridge.run(session, {"task": task_text})
         finally:
             if server is not None:
                 server.shutdown()
