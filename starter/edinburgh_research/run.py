@@ -250,7 +250,7 @@ async def run_scenario(real: bool) -> int:
 
         # This is required to pass relevant context to the planner as the create session in only saving the task in SESSION.md
         # with the  half.run having no visibility into the task if left as it was
-        with open(str(session.directory) + "/SESSION.md", "r", encoding="utf-8") as f:
+        with open(str(session.directory) + "/SESSION.md", encoding="utf-8") as f:
             task = f.read()
 
         result = await half.run(session, {"task": task})
