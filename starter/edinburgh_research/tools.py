@@ -380,7 +380,6 @@ def build_tool_registry(session: Session) -> ToolRegistry:
             elif tool == "calculate_cost":
                 event_details["total_gbp"] = out.get("total_gbp")
                 event_details["deposit_required_gbp"] = out.get("deposit_required_gbp")
-
         return generate_flyer(session, event_details)
 
     reg.register(
