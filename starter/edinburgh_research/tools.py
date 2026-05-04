@@ -62,7 +62,7 @@ def venue_search(near: str, party_size: int, budget_max_gbp: int = 1000) -> Tool
             if v.get("open_now", False) and v.get("seats_available_evening", 0) >= party_size:
                 if (v.get("hire_fee_gbp", 0) + v.get("min_spend_gbp", 0)) <= budget_max_gbp:
                     fallback.append(v)
-        
+
         if fallback:
             results = fallback
             note = f"Area '{near}' not found. Returning alternatives in Edinburgh."
@@ -75,13 +75,20 @@ def venue_search(near: str, party_size: int, budget_max_gbp: int = 1000) -> Tool
         "near": near,
         "party_size": party_size,
         "budget_max_gbp": budget_max_gbp,
-        "results": [{"id": v["id"], "name": v["name"], "address": v["address"], "area": v["area"]} for v in results],
+        "results": [
+            {"id": v["id"], "name": v["name"], "address": v["address"], "area": v["area"]}
+            for v in results
+        ],
         "count": len(results),
     }
     if note:
         output["note"] = note
 
-    record_tool_call("venue_search", {"near": near, "party_size": party_size, "budget_max_gbp": budget_max_gbp}, output)
+    record_tool_call(
+        "venue_search",
+        {"near": near, "party_size": party_size, "budget_max_gbp": budget_max_gbp},
+        output,
+    )
 
     summary = f"venue_search({near}, party={party_size}): {len(results)} result(s)"
     if results:
@@ -152,7 +159,7 @@ def calculate_cost(
 
     base_per_head = base_rates[catering_tier]
     venue_mult = catering_data.get("venue_modifiers", {}).get(venue_id, 1.0)
-    
+
     subtotal = int(base_per_head * venue_mult * party_size * max(1, duration_hours))
     service = int(subtotal * catering_data.get("service_charge_percent", 0) / 100)
     venue_fees = venue.get("hire_fee_gbp", 0) + venue.get("min_spend_gbp", 0)
@@ -176,7 +183,16 @@ def calculate_cost(
         "deposit_required_gbp": deposit,
     }
 
-    record_tool_call("calculate_cost", {"venue_id": venue_id, "party_size": party_size, "duration_hours": duration_hours, "catering_tier": catering_tier}, output)
+    record_tool_call(
+        "calculate_cost",
+        {
+            "venue_id": venue_id,
+            "party_size": party_size,
+            "duration_hours": duration_hours,
+            "catering_tier": catering_tier,
+        },
+        output,
+    )
 
     return ToolResult(
         success=True,
@@ -194,17 +210,17 @@ def generate_flyer(session: Session, event_details: dict) -> ToolResult:
 <html>
 <head><style>body {{ font-family: sans-serif; max-width: 600px; margin: 2em auto; padding: 1em; border: 1px solid #ccc; }} h1 {{ color: #2c3e50; text-align: center; }} .fact {{ margin: 0.5em 0; }} .label {{ font-weight: bold; }}</style></head>
 <body>
-    <h1 data-testid="venue_name">{event_details.get('venue_name')}</h1>
-    <div class="fact"><span class="label">Address:</span> <span data-testid="venue_address">{event_details.get('venue_address')}</span></div>
-    <div class="fact"><span class="label">Date:</span> <span data-testid="date">{event_details.get('date')}</span></div>
-    <div class="fact"><span class="label">Time:</span> <span data-testid="time">{event_details.get('time')}</span></div>
-    <div class="fact"><span class="label">Party Size:</span> <span data-testid="party_size">{event_details.get('party_size')}</span></div>
+    <h1 data-testid="venue_name">{event_details.get("venue_name")}</h1>
+    <div class="fact"><span class="label">Address:</span> <span data-testid="venue_address">{event_details.get("venue_address")}</span></div>
+    <div class="fact"><span class="label">Date:</span> <span data-testid="date">{event_details.get("date")}</span></div>
+    <div class="fact"><span class="label">Time:</span> <span data-testid="time">{event_details.get("time")}</span></div>
+    <div class="fact"><span class="label">Party Size:</span> <span data-testid="party_size">{event_details.get("party_size")}</span></div>
     <hr><h2>Weather</h2>
-    <div class="fact"><span class="label">Condition:</span> <span data-testid="condition">{event_details.get('condition')}</span></div>
-    <div class="fact"><span class="label">Temperature:</span> <span data-testid="temperature_c">{event_details.get('temperature_c')}</span>°C</div>
+    <div class="fact"><span class="label">Condition:</span> <span data-testid="condition">{event_details.get("condition")}</span></div>
+    <div class="fact"><span class="label">Temperature:</span> <span data-testid="temperature_c">{event_details.get("temperature_c")}</span>°C</div>
     <hr><h2>Cost Breakdown</h2>
-    <div class="fact"><span class="label">Total Cost:</span> <span data-testid="total_gbp">£{event_details.get('total_gbp')}</span></div>
-    <div class="fact"><span class="label">Deposit Required:</span> <span data-testid="deposit_required_gbp">£{event_details.get('deposit_required_gbp')}</span></div>
+    <div class="fact"><span class="label">Total Cost:</span> <span data-testid="total_gbp">£{event_details.get("total_gbp")}</span></div>
+    <div class="fact"><span class="label">Deposit Required:</span> <span data-testid="deposit_required_gbp">£{event_details.get("deposit_required_gbp")}</span></div>
 </body>
 </html>
 """
@@ -228,6 +244,7 @@ def generate_flyer(session: Session, event_details: dict) -> ToolResult:
 def build_tool_registry(session: Session) -> ToolRegistry:
     """Build a session-scoped tool registry with all four Ex5 tools."""
     from sovereign_agent.tools.builtin import make_builtin_registry
+
     reg = make_builtin_registry(session)
 
     store = MemoryStore(session)
@@ -235,12 +252,13 @@ def build_tool_registry(session: Session) -> ToolRegistry:
     def _save_to_memory(tool_name: str, result: ToolResult):
         if result.success:
             from datetime import datetime
+
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
             store.write_fact(
                 MemoryType.EPISODIC,
                 f"{tool_name}_{timestamp}",
                 result.summary,
-                metadata={"tool": tool_name, "output": result.output}
+                metadata={"tool": tool_name, "output": result.output},
             )
 
     # venue_search
@@ -301,10 +319,12 @@ def build_tool_registry(session: Session) -> ToolRegistry:
     )
 
     # calculate_cost
-    def _calculate_cost_adapter(venue_id: str, party_size: int, duration_hours: int, catering_tier: str = "bar_snacks") -> ToolResult:
+    def _calculate_cost_adapter(
+        venue_id: str, party_size: int, duration_hours: int, catering_tier: str = "bar_snacks"
+    ) -> ToolResult:
         # User requested: retrieve from memory if possible.
         # We check if the provided venue_id is empty, a placeholder, or a hallucinated ID (like V_12345).
-        
+
         facts = store.list_facts(memory_type=MemoryType.EPISODIC)
         for fact in reversed(facts):
             if fact.metadata.get("tool") == "venue_search":
@@ -356,14 +376,14 @@ def build_tool_registry(session: Session) -> ToolRegistry:
     def _flyer_adapter(event_details: dict) -> ToolResult:
         # TRUTH-FIRST: populate fields from episodic memory, overwriting hallucinations
         facts = store.list_facts(memory_type=MemoryType.EPISODIC)
-        
+
         seen_tools = set()
         for fact in reversed(facts):
             tool = fact.metadata.get("tool")
             if not tool or tool in seen_tools:
                 continue
             seen_tools.add(tool)
-            
+
             out = fact.metadata.get("output", {})
             if tool == "venue_search":
                 res = out.get("results", [])

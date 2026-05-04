@@ -98,6 +98,7 @@ def extract_testid_facts(text: str) -> dict[str, str]:
 
 def fact_appears_in_log(fact: Any, log: list[ToolCallRecord] | None = None) -> bool:
     records = log if log is not None else _TOOL_CALL_LOG
+
     def _normalize(s: Any) -> str:
         return " ".join(str(s).lower().strip("£°c ").split())
 
