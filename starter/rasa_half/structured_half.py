@@ -159,22 +159,33 @@ class RasaStructuredHalf(StructuredHalf):
         rejected = False
         rejection_reason = ""
         booking_reference = None
+        custom_metadata = {}
+        all_texts = [m.get("text") for m in messages if m.get("text")]
+        full_text = " ".join(all_texts)
+        text_lc = full_text.lower()
         for m in messages:
             if not isinstance(m, dict):
                 continue
-            text = (m.get("text") or "").lower()
             custom = m.get("custom") or {}
-            action = custom.get("action") if isinstance(custom, dict) else None
+            if isinstance(custom, dict):
+                # Clean up stringified slots from Rasa templates
+                for k in ["party_limit", "deposit_limit"]:
+                    val = custom.get(k)
+                    if isinstance(val, str) and val.replace(".", "", 1).isdigit():
+                        custom[k] = float(val)
+                    elif val == "None" or val == "" or val == f"{{{k}}}":
+                        custom[k] = None
+                custom_metadata.update(custom)
+        action = custom_metadata.get("action")
 
-            if action == "committed" or "booking confirmed" in text:
-                confirmed = True
-                if isinstance(custom, dict):
-                    booking_reference = custom.get("booking_reference")
-                if "reference:" in text and not booking_reference:
-                    booking_reference = text.split("reference:", 1)[1].strip().rstrip(".").upper()
-            if action == "rejected" or "can't accept" in text or "rejected" in text:
-                rejected = True
-                rejection_reason = text or "rejected by rasa"
+        if action == "committed" or "booking confirmed" in text_lc:
+            confirmed = True
+            booking_reference = custom_metadata.get("booking_reference")
+            if "reference:" in text_lc and not booking_reference:
+                booking_reference = text_lc.split("reference:", 1)[1].strip().rstrip(".").upper()
+        if action == "rejected" or "can't accept" in text_lc or "rejected" in text_lc:
+            rejected = True
+            rejection_reason = full_text or "rejected by rasa"
 
         if confirmed and not rejected:
             return HalfResult(
@@ -197,6 +208,7 @@ class RasaStructuredHalf(StructuredHalf):
                     "reason": rejection_reason,
                     "rasa_response": messages,
                     "booking": booking,
+                    "metadata": custom_metadata,
                 },
                 summary=f"rasa rejected: {rejection_reason}",
                 next_action="escalate",
@@ -452,14 +464,18 @@ class _MockRasaHandler(BaseHTTPRequestHandler):
             response = [
                 {
                     "text": "Sorry, we can't accept this booking. Reason: party_too_large",
-                    "custom": {"action": "rejected", "reason": "party_too_large"},
+                    "custom": {"action": "rejected", "reason": "party_too_large", "party_limit": 8},
                 }
             ]
         elif deposit > 300:
             response = [
                 {
                     "text": "Sorry, we can't accept this booking. Reason: deposit_too_high",
-                    "custom": {"action": "rejected", "reason": "deposit_too_high"},
+                    "custom": {
+                        "action": "rejected",
+                        "reason": "deposit_too_high",
+                        "deposit_limit": 300,
+                    },
                 }
             ]
         else:

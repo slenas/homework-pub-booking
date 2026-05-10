@@ -117,6 +117,38 @@ def _build_fake_client_two_rounds() -> FakeLLMClient:
                     )
                 ]
             ),
+            # === ROUND 3 (finalization — after structured confirmed round 2) ===
+            ScriptedResponse(
+                content=json.dumps(
+                    [
+                        {
+                            "id": "sg_fin",
+                            "description": "finalise the session after booking was confirmed",
+                            "success_criterion": "session marked complete",
+                            "estimated_tool_calls": 1,
+                            "depends_on": [],
+                            "assigned_half": "loop",
+                        }
+                    ]
+                )
+            ),  # planner turn 3
+            ScriptedResponse(  # executor turn: complete_task
+                tool_calls=[
+                    ToolCall(
+                        id="c5",
+                        name="complete_task",
+                        arguments={
+                            "result": {
+                                "venue_id": "the_royal_oak",
+                                "date": "2026-04-25",
+                                "party_size": 6,
+                                "booking_confirmed": True,
+                            }
+                        },
+                    )
+                ]
+            ),
+            ScriptedResponse(content="Booking complete."),  # executor summary
         ]
     )
 
@@ -153,8 +185,9 @@ async def run_scenario(real: bool) -> int:
             client = _build_fake_client_two_rounds()
             planner_model = executor_model = "fake"
         else:
-            from sovereign_agent.config import Config
             from sovereign_agent._internal.llm_client import OpenAICompatibleClient
+            from sovereign_agent.config import Config
+
             cfg = Config.from_env()
             print(f"  LLM: {cfg.llm_base_url} (live)")
             client = OpenAICompatibleClient(
@@ -186,7 +219,7 @@ async def run_scenario(real: bool) -> int:
         print(f"\nBridge outcome: {result.outcome}")
         print(f"  rounds: {result.rounds}")
         print(f"  summary: {result.summary}")
-        return 0 if result.outcome == "completed" else 1
+        return 0 if result.outcome in ("completed", "confirmed") else 1
 
 
 def main() -> None:

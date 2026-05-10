@@ -117,10 +117,33 @@ class ActionValidateBooking(Action):
 
         # Rule checks
         if party_int > MAX_PARTY_SIZE_FOR_AUTO_BOOKING:
-            return slot_events + [SlotSet("validation_error", "party_too_large")]
+            dispatcher.utter_message(
+                text=f"Sorry, we can't accept this booking. Reason: party_too_large. The strict limit is {MAX_PARTY_SIZE_FOR_AUTO_BOOKING} people.",
+                json_message={
+                    "action": "rejected",
+                    "reason": "party_too_large",
+                    "party_limit": MAX_PARTY_SIZE_FOR_AUTO_BOOKING
+                }
+            )
+            return slot_events + [
+                SlotSet("validation_error", "party_too_large"),
+                SlotSet("party_limit", MAX_PARTY_SIZE_FOR_AUTO_BOOKING)
+            ]
 
         if deposit_int > MAX_DEPOSIT_FOR_AUTO_BOOKING_GBP:
-            return slot_events + [SlotSet("validation_error", "deposit_too_high")]
+            dispatcher.utter_message(
+                text=f"Sorry, we can't accept this booking. Reason: deposit_too_high. The strict limit is £{MAX_DEPOSIT_FOR_AUTO_BOOKING_GBP}.",
+                json_message={
+                    "action": "rejected",
+                    "reason": "deposit_too_high",
+                    "deposit_limit": MAX_DEPOSIT_FOR_AUTO_BOOKING_GBP
+                }
+            )
+            return slot_events + [
+                SlotSet("validation_error", "deposit_too_high"),
+                SlotSet("deposit_limit", MAX_DEPOSIT_FOR_AUTO_BOOKING_GBP)
+            ]
+
 
         # Success — generate a deterministic booking reference
         ref = (
