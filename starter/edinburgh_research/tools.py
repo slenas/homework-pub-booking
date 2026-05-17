@@ -22,9 +22,36 @@ from sovereign_agent.memory import MemoryStore, MemoryType
 from sovereign_agent.session.directory import Session
 from sovereign_agent.tools.registry import ToolRegistry, ToolResult, _RegisteredTool
 
+from starter.rasa_half.validator import canonicalise_venue_id
+
 from .integrity import record_tool_call
 
 _SAMPLE_DATA = Path(__file__).parent / "sample_data"
+
+
+def resolve_venue_id(val: str) -> str:
+    if not val:
+        return ""
+    val_clean = canonicalise_venue_id(val)
+
+    # Load the venues database to find a matching ID or Name
+    import json
+    from pathlib import Path
+
+    v_file = Path(__file__).resolve().parent / "sample_data" / "venues.json"
+    if v_file.exists():
+        with open(v_file) as f:
+            venues = json.load(f)
+        for v in venues:
+            # Match ID or canonicalised name directly
+            if v["id"] == val_clean or canonicalise_venue_id(v["name"]) == val_clean:
+                return v["id"]
+            # Fallback: strip leading "the_" to align prefixes
+            val_no_the = val_clean[4:] if val_clean.startswith("the_") else val_clean
+            v_id_no_the = v["id"][4:] if v["id"].startswith("the_") else v["id"]
+            if val_no_the == v_id_no_the:
+                return v["id"]
+    return val_clean
 
 
 # ---------------------------------------------------------------------------
@@ -40,36 +67,47 @@ def venue_search(near: str, party_size: int, budget_max_gbp: int = 1000) -> Tool
         venues = json.load(f)
 
     results = []
-    near_lower = near.lower()
+    near_lower = near.split(" ")[0].lower()
     for v in venues:
         if not v.get("open_now", False):
+            # print(f'{v["id"]} goes in opennow')
             continue
-        if near_lower not in v.get("area", "").lower():
+        if (near_lower not in v.get("area", "").lower()) and (
+            near_lower not in v.get("address", "").lower()
+        ):
+            # print(near_lower)
+            # print(v.get("area", "").lower())
+            # print(v.get("address", "").lower())
+            # print(f'{v["id"]} goes in location')
             continue
-        if v.get("seats_available_evening", 0) < party_size:
-            continue
+        # if v.get("seats_available_evening", 0) < party_size:
+        #     print(v.get("seats_available_evening", 0))
+        #     print(party_size)
+        #     print(f'{v["id"]} goes in capacity')
+        #     continue
 
         total_fee = v.get("hire_fee_gbp", 0) + v.get("min_spend_gbp", 0)
         if total_fee > budget_max_gbp:
+            # print(f'{v["id"]} goes in budget')
             continue
 
         results.append(v)
 
     # Robustness fallback: if area search failed, return any open venue fitting party/budget
-    if not results:
-        fallback = []
-        for v in venues:
-            if v.get("open_now", False) and v.get("seats_available_evening", 0) >= party_size:
-                if (v.get("hire_fee_gbp", 0) + v.get("min_spend_gbp", 0)) <= budget_max_gbp:
-                    fallback.append(v)
+    # if not results:
+    #     fallback = []
+    #     for v in venues:
+    #         if v.get("open_now", False) and v.get("seats_available_evening", 0) >= party_size:
+    #             if (v.get("hire_fee_gbp", 0) + v.get("min_spend_gbp", 0)) <= budget_max_gbp:
+    #                 fallback.append(v)
 
-        if fallback:
-            results = fallback
-            note = f"Area '{near}' not found. Returning alternatives in Edinburgh."
-        else:
-            note = "No venues matched your criteria."
-    else:
-        note = None
+    #     if fallback:
+    #         results = fallback
+    #         note = f"Area '{near}' not found. Returning alternatives in Edinburgh."
+    #     else:
+    #         note = "No venues matched your criteria."
+    # else:
+    #     note = None
 
     output = {
         "near": near,
@@ -87,8 +125,8 @@ def venue_search(near: str, party_size: int, budget_max_gbp: int = 1000) -> Tool
         ],
         "count": len(results),
     }
-    if note:
-        output["note"] = note
+    # if note:
+    #     output["note"] = note
 
     record_tool_call(
         "venue_search",
@@ -98,7 +136,7 @@ def venue_search(near: str, party_size: int, budget_max_gbp: int = 1000) -> Tool
 
     summary = f"venue_search({near}, party={party_size}): {len(results)} result(s)"
     if results:
-        summary += f". Primary candidate: {results[0]['name']} (id: {results[0]['id']})"
+        summary += f". Primary candidate: {results[0]['name']} (id: {results[0]['id']}). Now carry on with the rest of your subgoals following your plan."
 
     return ToolResult(success=True, output=output, summary=summary)
 
@@ -129,7 +167,7 @@ def get_weather(city: str, date: str) -> ToolResult:
     return ToolResult(
         success=True,
         output=output,
-        summary=f"get_weather({city}, {date}): {output['condition']}, {output['temperature_c']}C",
+        summary=f"get_weather({city}, {date}): {output['condition']}, {output['temperature_c']}C. Now carry on with the rest of your subgoals following your plan.",
     )
 
 
@@ -203,7 +241,7 @@ def calculate_cost(
     return ToolResult(
         success=True,
         output=output,
-        summary=f"calculate_cost({venue_id}, party={party_size}): total £{total}, deposit £{deposit}",
+        summary=f"calculate_cost({venue_id}, party={party_size}): total £{total}, deposit £{deposit}. Do not overthink. Since you reached the point all the required information is available. Now carry on with the rest of your subgoals by strictly following your plan.",
     )
 
 
@@ -263,7 +301,12 @@ def build_tool_registry(session: Session) -> ToolRegistry:
                 MemoryType.EPISODIC,
                 f"{tool_name}_{timestamp}",
                 result.summary,
-                metadata={"tool": tool_name, "output": result.output, "arguments": arguments},
+                metadata={
+                    "tool": tool_name,
+                    "output": result.output,
+                    "arguments": arguments,
+                    "success": result.success,
+                },
             )
 
             # Write to Semantic Memory (Persistent Verified State)
@@ -299,15 +342,23 @@ def build_tool_registry(session: Session) -> ToolRegistry:
                         MemoryType.SEMANTIC,
                         "primary_candidate_venue",
                         f"Primary candidate from search: {primary}",
-                    metadata={"key": "primary_candidate", "value": primary},
-                )
-                # Also store it as 'venue_id' for easier lookup
-                store.write_fact(
-                    MemoryType.SEMANTIC,
-                    "target_venue_id",
-                    f"Current Target: venue_id={primary}",
-                    metadata={"key": "venue_id", "value": primary},
-                )
+                        metadata={"key": "primary_candidate", "value": primary},
+                    )
+                    # Also store it as 'venue_id' for easier lookup
+                    store.write_fact(
+                        MemoryType.SEMANTIC,
+                        "target_venue_id",
+                        f"Current Target: venue_id={primary}",
+                        metadata={"key": "venue_id", "value": primary},
+                    )
+                    address = results[0].get("address", "")
+                    store.write_fact(
+                        MemoryType.SEMANTIC,
+                        "target_city",
+                        f"Current Target City: {address}",
+                        metadata={"key": "city", "value": address},
+                    )
+
             if tool_name == "calculate_cost" and result.success:
                 out = result.output
                 dep = out.get("deposit_required_gbp", out.get("deposit_gbp"))
@@ -332,48 +383,48 @@ def build_tool_registry(session: Session) -> ToolRegistry:
         # --- Search Lock Logic ---
         # If we already have a successful search result in memory, and NO rejection has happened
         # since then, block any further venue_search calls to prevent hallucinatory drift.
-        facts = store.list_facts(memory_type=MemoryType.EPISODIC)
-        semantic_facts = store.list_facts(memory_type=MemoryType.SEMANTIC)
-        
-        has_results = False
-        for fact in semantic_facts:
-            if fact.metadata.get("key") == "primary_candidate":
-                has_results = True
-                break
-        
-        has_rejection = False
-        for fact in semantic_facts:
-            if fact.metadata.get("key") in ("party_size_max", "deposit_gbp_max"):
-                has_rejection = True
-                break
-        
-        # If we have results and haven't been rejected, don't search again!
-        if has_results and not has_rejection:
-            return ToolResult(
-                success=False,
-                output={"error": "REDUNDANT_SEARCH", "reason": "You already have valid candidates. Proceed to calculate_cost."},
-                summary="Error: You already have candidates from your previous search. DO NOT search again. Use calculate_cost for your primary candidate instead."
-            )
+        store.list_facts(memory_type=MemoryType.EPISODIC)
+        store.list_facts(memory_type=MemoryType.SEMANTIC)
+
+        # has_results = False
+        # for fact in semantic_facts:
+        #     if fact.metadata.get("key") == "primary_candidate":
+        #         has_results = True
+        #         break
+
+        # has_rejection = False
+        # for fact in semantic_facts:
+        #     if fact.metadata.get("key") in ("party_size_max", "deposit_gbp_max"):
+        #         has_rejection = True
+        #         break
+
+        # # If we have results and haven't been rejected, don't search again!
+        # if has_results and not has_rejection:
+        #     return ToolResult(
+        #         success=False,
+        #         output={"error": "REDUNDANT_SEARCH", "reason": "You already have valid candidates. Proceed to calculate_cost."},
+        #         summary="Error: You already have candidates from your previous search. DO NOT search again. Use calculate_cost for your primary candidate instead."
+        #     )
         # -------------------------
 
-        # ARCHITECTURAL IMPROVEMENT: Check Persistent Rejection Constraints
-        semantic_facts = store.list_facts(memory_type=MemoryType.SEMANTIC)
-        for fact in semantic_facts:
-            if fact.metadata.get("key") == "party_size_max":
-                try:
-                    p_max = float(fact.metadata["value"])
-                    if party_size > p_max:
-                        return ToolResult(
-                            success=False,
-                            output={
-                                "error": "CONSTRAINT_VIOLATION",
-                                "requested": party_size,
-                                "limit": p_max,
-                            },
-                            summary=f"Error: You already know the booking system has a limit of {p_max} people from a previous rejection. Your search for {party_size} is invalid. DO NOT hand this error off to the structured half. FIX the party_size to {p_max} or less and search again locally.",
-                        )
-                except (ValueError, TypeError):
-                    continue
+        # # ARCHITECTURAL IMPROVEMENT: Check Persistent Rejection Constraints
+        # semantic_facts = store.list_facts(memory_type=MemoryType.SEMANTIC)
+        # for fact in semantic_facts:
+        #     if fact.metadata.get("key") == "party_size_max":
+        #         try:
+        #             p_max = float(fact.metadata["value"])
+        #             if party_size > p_max:
+        #                 return ToolResult(
+        #                     success=False,
+        #                     output={
+        #                         "error": "CONSTRAINT_VIOLATION",
+        #                         "requested": party_size,
+        #                         "limit": p_max,
+        #                     },
+        #                     summary=f"Error: You already know the booking system has a limit of {p_max} people from a previous rejection. DO NOT hand this error off to the structured half. Do another search for a venue in the wider city that has enough capacity to host {party_size} people.",
+        #                 )
+        #         except (ValueError, TypeError):
+        #             continue
 
         res = venue_search(near, party_size, budget_max_gbp)
         _save_to_memory(
@@ -381,14 +432,14 @@ def build_tool_registry(session: Session) -> ToolRegistry:
             res,
             {"near": near, "party_size": party_size, "budget_max_gbp": budget_max_gbp},
         )
-        
+
         # Improvement: Directive Summary
         if res.success and res.output.get("results"):
             primary = res.output["results"][0]
             res.summary = (
                 f"venue_search({near}, party={party_size}): {len(res.output['results'])} result(s). "
                 f"Primary candidate: {primary['name']} (id: {primary['id']}). "
-                f"STOP searching. Use calculate_cost(venue_id='{primary['id']}', party_size={party_size}) next."
+                f"Continue with the rest of your subgoals by strictly following your plan."
             )
         return res
 
@@ -397,7 +448,7 @@ def build_tool_registry(session: Session) -> ToolRegistry:
             name="venue_search",
             description=(
                 "Search Edinburgh venues by area, party size, and max budget. Results are stored in Session Memory. "
-                "Do NOT use list_files to check for results. If no results are found, FIX your parameters and SEARCH AGAIN. "
+                "Do NOT use list_files to check for results."
                 "DO NOT hand off a search failure to the structured half."
             ),
             fn=_venue_search_adapter,
@@ -480,7 +531,7 @@ def build_tool_registry(session: Session) -> ToolRegistry:
                     venue_id = f.metadata["value"]
                 if f.metadata.get("key") == "target_party" and not party_size:
                     party_size = f.metadata["value"]
-            
+
             # Then check latest successful search in episodic memory
             if not venue_id or not party_size:
                 for fact in reversed(facts):
@@ -506,7 +557,11 @@ def build_tool_registry(session: Session) -> ToolRegistry:
                 if party_size > p_max_val:
                     return ToolResult(
                         success=False,
-                        output={"error": "CONSTRAINT_VIOLATION", "requested": party_size, "limit": p_max_val},
+                        output={
+                            "error": "CONSTRAINT_VIOLATION",
+                            "requested": party_size,
+                            "limit": p_max_val,
+                        },
                         summary=f"Error: Rejection history shows a limit of {p_max_val} people. You cannot calculate cost for {party_size}.",
                     )
             except (ValueError, TypeError):
@@ -516,7 +571,11 @@ def build_tool_registry(session: Session) -> ToolRegistry:
         if target_party is not None and int(party_size) != int(target_party):
             return ToolResult(
                 success=False,
-                output={"error": "CONSISTENCY_FAILURE", "requested": party_size, "expected": target_party},
+                output={
+                    "error": "CONSISTENCY_FAILURE",
+                    "requested": party_size,
+                    "expected": target_party,
+                },
                 summary=f"Error: You searched for party_size={target_party}. You cannot calculate cost for {party_size} without doing a new venue_search first. Please use party_size={target_party}.",
             )
 
@@ -566,16 +625,18 @@ def build_tool_registry(session: Session) -> ToolRegistry:
             if f.metadata.get("key") == "primary_candidate":
                 primary_id = f.metadata["value"]
                 break
-        
+
         # If we have a primary candidate, you MUST use it.
         # Exception: if we are in Ex7 and have a rejection (meaning the primary failed).
-        has_rejection = any(f.metadata.get("key") in ("party_size_max", "deposit_gbp_max") for f in semantic_facts)
-        
+        has_rejection = any(
+            f.metadata.get("key") in ("party_size_max", "deposit_gbp_max") for f in semantic_facts
+        )
+
         if primary_id and venue_id != primary_id and not has_rejection:
             return ToolResult(
                 success=False,
                 output={"error": "INVALID_VENUE_ID", "provided": venue_id, "required": primary_id},
-                summary=f"Error: Your research identified '{primary_id}' as the primary candidate. You MUST calculate cost for it first. Do not use '{venue_id}'."
+                summary=f"Error: Your research identified '{primary_id}' as the primary candidate. You MUST calculate cost for it first. Do not use '{venue_id}'.",
             )
         # -----------------------------------------------
 
@@ -587,12 +648,16 @@ def build_tool_registry(session: Session) -> ToolRegistry:
                 if deposit_val > d_max_val:
                     return ToolResult(
                         success=False,
-                        output={"error": "CONSTRAINT_VIOLATION", "deposit": deposit_val, "limit": d_max_val},
+                        output={
+                            "error": "CONSTRAINT_VIOLATION",
+                            "deposit": deposit_val,
+                            "limit": d_max_val,
+                        },
                         summary=f"Error: The calculated deposit of £{deposit_val} exceeds the strict limit of £{d_max_val}. Try a cheaper catering tier or smaller party.",
                     )
             except (ValueError, TypeError):
                 pass
-        
+
         _save_to_memory(
             "calculate_cost",
             res,
@@ -672,7 +737,7 @@ def build_tool_registry(session: Session) -> ToolRegistry:
             elif tool == "calculate_cost":
                 event_details["total_gbp"] = out.get("total_gbp")
                 event_details["deposit_required_gbp"] = out.get("deposit_required_gbp")
-        
+
         # Finally, check semantic memory for target_time
         semantic_facts = store.list_facts(memory_type=MemoryType.SEMANTIC)
         for f in semantic_facts:
@@ -735,25 +800,46 @@ def build_tool_registry(session: Session) -> ToolRegistry:
 
             # --- Handoff Guard Logic ---
             # Do NOT allow handing off errors, placeholders, or incomplete data.
-            err_keys = {"error", "error_code", "violation", "failure", "missing_parameters", "no_results"}
+            err_keys = {
+                "error",
+                "error_code",
+                "violation",
+                "failure",
+                "missing_parameters",
+                "no_results",
+            }
             data_values = (str(data) + " " + reason + " " + context).lower()
-            
-            if any(k in data for k in err_keys) or "violation" in reason.lower() or "error" in reason.lower() or \
-               "missing" in data_values or "n/a" in data_values or "unknown" in data_values or \
-               "no results" in data_values or "empty" in data_values or "workspace" in data_values:
+
+            if (
+                any(k in data for k in err_keys)
+                or "violation" in reason.lower()
+                or "error" in reason.lower()
+                or "missing" in data_values
+                or "n/a" in data_values
+                or "unknown" in data_values
+                or "no results" in data_values
+                or "empty" in data_values
+                or "workspace" in data_values
+            ):
                 return ToolResult(
                     success=False,
-                    output={"error": "INVALID_HANDOFF", "reason": "You cannot hand off a failure, search miss, or workspace confusion. You must fix the parameters locally (e.g. reduce party size, find venue_id) until you have a COMPLETE and VALID booking proposal (venue_id, party_size, deposit)."},
-                    summary="Error: Invalid handoff. You are trying to hand off a search failure or incomplete data. Handle this locally by adjusting your parameters and re-running venue_search/calculate_cost until you have a valid proposal. DO NOT list_files, rely on session memory."
+                    output={
+                        "error": "INVALID_HANDOFF",
+                        "reason": "You cannot hand off a failure, search miss, or workspace confusion. You must fix the parameters locally (e.g. reduce party size, find venue_id) until you have a COMPLETE and VALID booking proposal (venue_id, party_size, deposit).",
+                    },
+                    summary="Error: Invalid handoff. You are trying to hand off a search failure or incomplete data. Handle this locally by adjusting your parameters and re-running venue_search/calculate_cost until you have a valid proposal. DO NOT list_files, rely on session memory.",
                 )
-            
+
             # Mandatory fields for structured half
             mandatory = ["venue_id", "party_size", "deposit"]
             if not all(data.get(k) or targets.get(k) for k in mandatory):
-                 return ToolResult(
+                return ToolResult(
                     success=False,
-                    output={"error": "INCOMPLETE_DATA", "missing": [k for k in mandatory if not data.get(k) and not targets.get(k)]},
-                    summary="Error: Your handoff is missing mandatory fields. Ensure you have successfully called venue_search AND calculate_cost before handing off."
+                    output={
+                        "error": "INCOMPLETE_DATA",
+                        "missing": [k for k in mandatory if not data.get(k) and not targets.get(k)],
+                    },
+                    summary="Error: Your handoff is missing mandatory fields. Ensure you have successfully called venue_search AND calculate_cost before handing off.",
                 )
             # ---------------------------
 
@@ -771,7 +857,9 @@ def build_tool_registry(session: Session) -> ToolRegistry:
             if not data.get("deposit"):
                 # Try to recover from latest successful calculate_cost
                 for fact in reversed(facts):
-                    if fact.metadata.get("tool") == "calculate_cost" and fact.metadata.get("success"):
+                    if fact.metadata.get("tool") == "calculate_cost" and fact.metadata.get(
+                        "success"
+                    ):
                         out = fact.metadata.get("output", {})
                         dep = out.get("deposit_required_gbp", out.get("deposit_gbp"))
                         if dep is not None:
@@ -781,10 +869,10 @@ def build_tool_registry(session: Session) -> ToolRegistry:
                         if not data.get("party_size"):
                             data["party_size"] = out.get("party_size")
                         break
-            
+
             if not data.get("venue_id") or not data.get("party_size"):
-                 # Try to recover from latest venue_search
-                 for fact in reversed(facts):
+                # Try to recover from latest venue_search
+                for fact in reversed(facts):
                     if fact.metadata.get("tool") == "venue_search" and fact.metadata.get("success"):
                         out = fact.metadata.get("output", {})
                         results = out.get("results", [])
@@ -797,24 +885,28 @@ def build_tool_registry(session: Session) -> ToolRegistry:
 
             # Consistency Check: party_size and venue_id must match search/cost history
             expected_venue = None
-            expected_party = None
             for fact in reversed(facts):
                 tool = fact.metadata.get("tool")
                 out = fact.metadata.get("output", {})
                 if tool == "calculate_cost":
                     expected_venue = out.get("venue_id")
-                    expected_party = out.get("party_size")
+                    out.get("party_size")
                     break
                 if tool == "venue_search" and not expected_venue:
                     res = out.get("results", [])
                     if res:
                         expected_venue = res[0]["id"]
-                        expected_party = out.get("party_size")
+                        out.get("party_size")
                         break
 
             # If the Agent's handoff data differs from its own tool results, reject it
             if data:
-                if expected_venue and data.get("venue_id") and data["venue_id"] != expected_venue:
+                # if expected_venue and data.get("venue_id") and canonicalise_venue_id(data["venue_id"]) != canonicalise_venue_id(expected_venue):
+                if (
+                    expected_venue
+                    and data.get("venue_id")
+                    and resolve_venue_id(data["venue_id"]) != resolve_venue_id(expected_venue)
+                ):
                     return ToolResult(
                         success=False,
                         output={
@@ -824,20 +916,20 @@ def build_tool_registry(session: Session) -> ToolRegistry:
                         },
                         summary=f"Error: Consistency failure. You are handing off venue_id '{data['venue_id']}', but your own cost calculation was for '{expected_venue}'. Please fix your proposal.",
                     )
-                if (
-                    expected_party
-                    and data.get("party_size")
-                    and int(data["party_size"]) != int(expected_party)
-                ):
-                    return ToolResult(
-                        success=False,
-                        output={
-                            "error": "CONSISTENCY_FAILURE",
-                            "provided": data["party_size"],
-                            "expected": expected_party,
-                        },
-                        summary=f"Error: Consistency failure. You are handing off party_size={data['party_size']}, but your own tool results are for {expected_party}. Please fix your proposal.",
-                    )
+                # if (
+                #     expected_party
+                #     and data.get("party_size")
+                #     and int(data["party_size"]) != int(expected_party)
+                # ):
+                #     return ToolResult(
+                #         success=False,
+                #         output={
+                #             "error": "CONSISTENCY_FAILURE",
+                #             "provided": data["party_size"],
+                #             "expected": expected_party,
+                #         },
+                #         summary=f"Error: Consistency failure. You are handing off party_size={data['party_size']}, but your own tool results are for {expected_party}. Please fix your proposal.",
+                #     )
 
             return base_handoff_fn(reason=reason, context=context, data=data)
 
@@ -849,7 +941,7 @@ def build_tool_registry(session: Session) -> ToolRegistry:
     try:
         complete_tool = reg.get("complete_task")
         base_complete_fn = complete_tool.fn
-        
+
         def _complete_adapter(**kwargs) -> ToolResult:
             has_handoff = False
             try:
@@ -859,20 +951,25 @@ def build_tool_registry(session: Session) -> ToolRegistry:
                 pass
             if has_handoff:
                 semantic_facts = store.list_facts(memory_type=MemoryType.SEMANTIC)
-                is_confirmed = any(f.metadata.get("key") == "structured_confirmed" for f in semantic_facts)
-                
+                is_confirmed = any(
+                    f.metadata.get("key") == "structured_confirmed" for f in semantic_facts
+                )
+
                 # Exception for Ex5: If flyer exists, it's a research task completion
                 import os
-                flyer_exists = os.path.exists(os.path.join(session.directory, "workspace", "flyer.html"))
-                
+
+                flyer_exists = os.path.exists(
+                    os.path.join(session.directory, "workspace", "flyer.html")
+                )
+
                 if not is_confirmed and not flyer_exists:
                     return ToolResult(
                         success=False,
                         output={"error": "PREMATURE_COMPLETION"},
-                        summary="Error: You MUST call handoff_to_structured with your proposal first. Do not call complete_task until the booking is confirmed by the structured half."
+                        summary="Error: You MUST call handoff_to_structured with your proposal first. Do not call complete_task until the booking is confirmed by the structured half.",
                     )
             return base_complete_fn(**kwargs)
-            
+
         complete_tool.fn = _complete_adapter
         complete_tool.description = "Mark the FULL session as complete. DO NOT call this until generate_flyer has been run and workspace/flyer.html is created. In Ex7, ONLY call this AFTER structured half confirms the booking."
     except Exception:

@@ -38,10 +38,6 @@ slots:
     type: text
     mappings:
       - type: controlled
-  party_limit:
-    type: float
-    mappings:
-      - type: controlled
   deposit_limit:
     type: float
     mappings:

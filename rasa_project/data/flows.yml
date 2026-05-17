@@ -1,4 +1,27 @@
 flows:
+  resume_from_loop:
+    description: "Read the handoff payload and populate slots."
+    steps:
+      - action: action_read_handoff_payload
+      - link: confirm_booking
+
+  confirm_booking:
+    description: "The deposit-enforcement flow."
+    steps:
+      - action: action_validate_booking
+      - if: slots.booking_status == "rejected"
+        steps:
+          - action: utter_booking_rejected
+          - action: action_write_handoff_to_research
+      - else:
+        steps:
+          - action: utter_booking_confirmed
+          - action: action_write_session_complete
+
+  request_research:
+    description: "Hand back to loop half."
+    steps:
+      - action: action_write_handoff_to_research
   # ─────────────────────────────────────────────────────────────────
   # confirm_booking — the ONE flow this homework uses.
   #

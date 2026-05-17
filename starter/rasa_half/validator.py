@@ -49,58 +49,24 @@ class ValidationFailed(ValueError):  # noqa: N818
 # ---------------------------------------------------------------------------
 # TODO — normalise_booking_payload
 # ---------------------------------------------------------------------------
-def normalise_booking_payload(raw: dict) -> dict:
-    """Take a data dict from the loop half's handoff and produce a Rasa-shaped message."""
-    import hashlib
-
-    if not isinstance(raw, dict):
-        raise ValidationFailed(f"expected dict, got {type(raw).__name__}")
-
-    venue_id_raw = raw.get("venue_id")
-    if not venue_id_raw:
-        raise ValidationFailed("missing venue_id")
-    venue_id = canonicalise_venue_id(venue_id_raw)
-
-    date_raw = raw.get("date")
-    if not date_raw:
-        raise ValidationFailed("missing date")
-    date_iso = _normalise_date(date_raw)
-
-    time_raw = raw.get("time")
-    if not time_raw:
-        raise ValidationFailed("missing time")
-    time_24h = parse_time_24h(time_raw)
-
-    party = parse_party_size(raw.get("party_size"))
-
-    deposit = 0
-    if raw.get("deposit") is not None:
-        deposit = parse_currency_gbp(raw["deposit"])
-
-    duration = raw.get("duration_hours", 3)
-    if isinstance(duration, str) and duration.isdigit():
-        duration = int(duration)
-    if not isinstance(duration, int) or duration < 1:
-        duration = 3
-
-    catering = raw.get("catering_tier", "bar_snacks")
-    if catering not in ("drinks_only", "bar_snacks", "sit_down_meal", "three_course_meal"):
-        catering = "bar_snacks"
-
-    stable_suffix = hashlib.sha1(f"{venue_id}-{date_iso}-{time_24h}".encode()).hexdigest()[:8]
-
+def normalise_booking_payload(data: dict) -> dict:
+    venue_id = canonicalise_venue_id(data.get("venue_id", ""))
+    date = _normalise_date(data.get("date", ""))
+    time = parse_time_24h(data.get("time", ""))
+    party_size = parse_party_size(data.get("party_size", 0))
+    # Parse deposit using the provided currency parser to ensure it returns an integer
+    deposit = parse_currency_gbp(data.get("deposit", 0))
     return {
-        "sender": f"homework-{stable_suffix}",
+        "sender": "homework_agent",
         "message": "/confirm_booking",
         "metadata": {
             "booking": {
-                "venue_id": venue_id,
-                "date": date_iso,
-                "time": time_24h,
-                "party_size": party,
-                "deposit_gbp": deposit,
-                "duration_hours": duration,
-                "catering_tier": catering,
+                "action": "confirm_booking",
+                "venue_id": venue_id,  # Use normalized variable!
+                "date": date,  # Use normalized variable!
+                "time": time,  # Use normalized variable!
+                "party_size": party_size,
+                "deposit_gbp": deposit,  # Integer representation!
             }
         },
     }

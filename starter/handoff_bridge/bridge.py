@@ -195,7 +195,7 @@ class HandoffBridge:
                     MemoryType.SEMANTIC,
                     fact_id="structured_confirmed",
                     content="The booking has been successfully confirmed by the structured agent.",
-                    metadata={"key": "structured_confirmed", "value": True}
+                    metadata={"key": "structured_confirmed", "value": True},
                 )
                 session.append_trace_event(
                     {
@@ -275,13 +275,14 @@ def build_forward_handoff(session: Session, loop_result: HalfResult) -> Handoff:
 
     store = MemoryStore(session)
     facts = store.list_facts(memory_type=MemoryType.EPISODIC)
-    
+
     # Sort chronologically by timestamp in ID
     def _fact_sort_key(f):
         parts = f.id.split("_")
         if len(parts) >= 3:
-            return parts[-3:] # YYYYMMDD, HHMMSS, micros
+            return parts[-3:]  # YYYYMMDD, HHMMSS, micros
         return ["0"] * 3
+
     facts = sorted(facts, key=_fact_sort_key)
 
     # Start from explicit handoff payload if provided.
@@ -311,7 +312,7 @@ def build_forward_handoff(session: Session, loop_result: HalfResult) -> Handoff:
     # 2. Find Latest Successful Search and Cost as Fallback
     latest_search = None
     latest_cost = None
-    
+
     for fact in reversed(facts):
         tool = fact.metadata.get("tool")
         out = fact.metadata.get("output", {})
@@ -324,7 +325,7 @@ def build_forward_handoff(session: Session, loop_result: HalfResult) -> Handoff:
 
     # 3. Truth-First Augmentation
     # Priority: 1. data (explicit agent call) 2. targets (semantic facts) 3. tool results (episodic)
-    
+
     if not data.get("venue_id"):
         data["venue_id"] = targets.get("venue_id")
     if not data.get("party_size"):
@@ -478,6 +479,7 @@ def build_reverse_task(
             attempted_deposit_gbp = int(dep)
         elif isinstance(dep, str):
             import re
+
             m = re.search(r"(\d+)", dep)
             if m:
                 attempted_deposit_gbp = int(m.group(1))
@@ -487,15 +489,25 @@ def build_reverse_task(
     if attempted_venue_id is None and isinstance(loop_result.output, dict):
         attempted_venue_id = loop_result.output.get("venue_id")
 
+    detected_city = "Edinburgh"  # Default fallback
+    for fact in semantic_facts:
+        if fact.metadata.get("key") == "city":
+            detected_city = fact.metadata.get("value")
+            break
+
     # Build Grounding Block
     ground_truth = []
     for fact in reversed(semantic_facts):
         key = fact.metadata.get("key")
         val = fact.metadata.get("value")
         if key == "party_size_max" and val:
-            ground_truth.append(f"!! CRITICAL LIMIT: party_size must be <= {val} (verified by booking system rejection)")
+            ground_truth.append(
+                f"!! CRITICAL LIMIT: party_size must be <= {val} (verified by booking system rejection)"
+            )
         elif key == "deposit_gbp_max" and val:
-            ground_truth.append(f"!! CRITICAL LIMIT: deposit must be <= £{val} (verified by booking system rejection)")
+            ground_truth.append(
+                f"!! CRITICAL LIMIT: deposit must be <= £{val} (verified by booking system rejection)"
+            )
         elif key == "primary_candidate" and val:
             ground_truth.append(f"- Primary candidate venue_id: {val} (from search)")
 
@@ -523,17 +535,15 @@ def build_reverse_task(
     # Reason-code routing (dynamic, no pinned values).
     constraints: dict = {}
     guidance_lines: list[str] = []
-    retry_header = "RETRY INSTRUCTIONS"
     reason_display = f"Rejection reason: {reason_text}"
 
     if struct_result.success:
         guidance_lines.append(
             f"✓ Booking CONFIRMED by structured half for {attempted_party} at '{attempted_venue_id}'."
         )
-        guidance_lines.append(
-            "- FINAL STEPS: Generate the HTML flyer using generate_flyer, then call complete_task."
-        )
-        retry_header = "FINALIZATION INSTRUCTIONS"
+        # guidance_lines.append(
+        #     "- FINAL STEPS: Generate the HTML flyer using generate_flyer, then call complete_task."
+        # )
         reason_display = "Booking Confirmed"
     elif "party_too_large" in reason_lc:
         # ARCHITECTURAL IMPROVEMENT: Check for Research vs. Structured Dissonance
@@ -553,15 +563,16 @@ def build_reverse_task(
                     break
 
         guidance_lines.append(
-            f"- Previous proposal used party_size={attempted_party} at venue '{attempted_venue_id}' and was rejected."
+            f"- Previous proposal used party_size={attempted_party} at venue '{attempted_venue_id}' and was rejected. Adjust your search to the wider city of the following address {detected_city}."
         )
-        # 2. Propagate Discovered Limits from Structured Half
+        # # 2. Propagate Discovered Limits from Structured Half
         metadata = (struct_result.output or {}).get("metadata") or {}
         p_limit = metadata.get("party_limit")
         d_limit = metadata.get("deposit_limit")
 
         # FALLBACK: Parse from text if metadata is missing (as added in actions.py)
         import re
+
         if p_limit is None:
             if m := re.search(r"limit is (\d+) people", reason_lc):
                 p_limit = float(m.group(1))
@@ -572,20 +583,36 @@ def build_reverse_task(
         if p_limit:
             reason_display += f" (Limit: {p_limit} people)"
             constraints["party_size"] = {"op": "lte", "value": p_limit}
-            guidance_lines.append(
-                f"- The booking system reported a strict limit: party_size must be <= {p_limit}."
-            )
-            guidance_lines.append(
-                "- ACTION: Keep your current venue choice but REDUCE the party_size to meet this limit."
-            )
-            # ARCHITECTURAL IMPROVEMENT: Save rejection limit to Semantic Memory
-            if store is not None:
-                store.write_fact(
-                    MemoryType.SEMANTIC,
-                    "constraint_party_size_max",
-                    f"Booking Restriction: party_size must be <= {p_limit}",
-                    metadata={"key": "party_size_max", "value": p_limit},
+            if attempted_venue_id and research_capacity and research_capacity >= attempted_party:
+                # The venue physically fits the party, but the automated system rejected it!
+                guidance_lines.append(
+                    f"- The online booking system has a global automated booking policy limit: party_size must be <= {p_limit}."
                 )
+                guidance_lines.append(
+                    f"- ACTION: You must lower your target party_size to meet this global online booking limit (<= {p_limit}) and search/re-propose."
+                )
+            else:
+                # The venue is physically too small
+                guidance_lines.append(
+                    f"- The venue '{attempted_venue_id}' only has capacity for {p_limit} people."
+                )
+                guidance_lines.append(
+                    f"- ACTION: Find another venue in the city of the following address {detected_city} that has enough capacity, OR reduce the party_size to {p_limit} or less."
+                )
+            # guidance_lines.append(
+            #     f"- The booking system reported that {attempted_venue_id} has a maximum capacity of {p_limit}."
+            # )
+            # guidance_lines.append(
+            #     "- ACTION: Extend your search within the city that includes the primary venue, to accomodate the requested party size "
+            # )
+            # # ARCHITECTURAL IMPROVEMENT: Save rejection limit to Semantic Memory
+            # if store is not None:
+            #     store.write_fact(
+            #         MemoryType.SEMANTIC,
+            #         "constraint_party_size_max",
+            #         f"Booking Restriction: party_size must be <= {p_limit}",
+            #         metadata={"key": "party_size_max", "value": p_limit},
+            #     )
 
         if not research_capacity or research_capacity >= attempted_party:
             guidance_lines.append(
@@ -594,7 +621,7 @@ def build_reverse_task(
             )
         else:
             guidance_lines.append(
-                "- This specific venue may have a lower capacity than requested. Please try another venue with larger capacity."
+                f"- '{attempted_venue_id}' has a lower capacity than requested. Please try another venue within the city that the {attempted_venue_id} belongs to with larger capacity."
             )
     elif "deposit_too_high" in reason_lc:
         # 3. Propagate Deposit Limits
@@ -647,11 +674,11 @@ def build_reverse_task(
                 metadata={"key": "structured_confirmed", "value": True},
             )
         retry_instructions = (
-            f"\n\nFINALIZATION INSTRUCTIONS:\n"
-            f"- Structured half result processed.\n"
-            f"- Booking Confirmed!\n"
-            f"- The booking is complete. You MUST NOW call complete_task to end the session.\n"
-            f"- Do NOT call any other tools. Do not search or calculate cost again.\n"
+            "\n\nFINALIZATION INSTRUCTIONS:\n"
+            "- Structured half result processed.\n"
+            "- Booking Confirmed!\n"
+            "- The booking is complete. You MUST NOW call complete_task to end the session.\n"
+            "- Do NOT call any other tools. Do not search or calculate cost again.\n"
         )
     else:
         retry_instructions = (

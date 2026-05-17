@@ -122,12 +122,12 @@ class ActionValidateBooking(Action):
                 json_message={
                     "action": "rejected",
                     "reason": "party_too_large",
-                    "party_limit": MAX_PARTY_SIZE_FOR_AUTO_BOOKING
-                }
+                    "party_limit": MAX_PARTY_SIZE_FOR_AUTO_BOOKING,
+                },
             )
             return slot_events + [
                 SlotSet("validation_error", "party_too_large"),
-                SlotSet("party_limit", MAX_PARTY_SIZE_FOR_AUTO_BOOKING)
+                SlotSet("party_limit", MAX_PARTY_SIZE_FOR_AUTO_BOOKING),
             ]
 
         if deposit_int > MAX_DEPOSIT_FOR_AUTO_BOOKING_GBP:
@@ -136,14 +136,13 @@ class ActionValidateBooking(Action):
                 json_message={
                     "action": "rejected",
                     "reason": "deposit_too_high",
-                    "deposit_limit": MAX_DEPOSIT_FOR_AUTO_BOOKING_GBP
-                }
+                    "deposit_limit": MAX_DEPOSIT_FOR_AUTO_BOOKING_GBP,
+                },
             )
             return slot_events + [
                 SlotSet("validation_error", "deposit_too_high"),
-                SlotSet("deposit_limit", MAX_DEPOSIT_FOR_AUTO_BOOKING_GBP)
+                SlotSet("deposit_limit", MAX_DEPOSIT_FOR_AUTO_BOOKING_GBP),
             ]
-
 
         # Success — generate a deterministic booking reference
         ref = (
