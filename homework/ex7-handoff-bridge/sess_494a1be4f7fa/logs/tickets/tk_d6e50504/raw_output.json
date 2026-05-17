@@ -1,0 +1,34 @@
+[
+  {
+    "id": "sg_1",
+    "description": "Search for venues in Haymarket for 12 people",
+    "success_criterion": "Returns a list of venue candidates",
+    "estimated_tool_calls": 1,
+    "depends_on": [],
+    "assigned_half": "loop",
+    "status": "pending"
+  },
+  {
+    "id": "sg_2",
+    "description": "Select a venue from search results and calculate its cost",
+    "success_criterion": "Obtain deposit amount from calculate_cost",
+    "estimated_tool_calls": 1,
+    "depends_on": [
+      "sg_1"
+    ],
+    "assigned_half": "loop",
+    "status": "pending"
+  },
+  {
+    "id": "sg_3",
+    "description": "Commit the booking via handoff_to_structured with required data",
+    "success_criterion": "handoff_to_structured returns a successful booking confirmation",
+    "estimated_tool_calls": 1,
+    "depends_on": [
+      "sg_1",
+      "sg_2"
+    ],
+    "assigned_half": "structured",
+    "status": "pending"
+  }
+]

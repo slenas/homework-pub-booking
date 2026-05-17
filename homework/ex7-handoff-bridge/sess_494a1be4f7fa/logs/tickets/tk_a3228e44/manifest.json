@@ -1,0 +1,20 @@
+{
+  "ticket_id": "tk_a3228e44",
+  "operation": "executor.run_subgoal/sg_1",
+  "started_at": "2026-05-17T20:51:44.725758+00:00",
+  "completed_at": "2026-05-17T20:51:58.582002+00:00",
+  "duration_ms": 13856,
+  "outputs": [
+    {
+      "path": "/Users/sotiris/Development/courses/AI performance engineering/homework-pub-booking/examples/ex7-handoff-bridge/sess_494a1be4f7fa/logs/tickets/tk_a3228e44/raw_output.json",
+      "sha256": "ba8f33573154cd21e3174600db64d7eb547acbb0185395c8fdf2796550d61326",
+      "size_bytes": 1660,
+      "content_type": "application/json"
+    }
+  ],
+  "metrics": {
+    "tool_calls": 1,
+    "turns_used": 2,
+    "handoff_requested": false
+  }
+}

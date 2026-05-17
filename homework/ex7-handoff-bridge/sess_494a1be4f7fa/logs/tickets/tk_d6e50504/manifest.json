@@ -1,0 +1,21 @@
+{
+  "ticket_id": "tk_d6e50504",
+  "operation": "planner.plan",
+  "started_at": "2026-05-17T20:49:49.782621+00:00",
+  "completed_at": "2026-05-17T20:49:59.956086+00:00",
+  "duration_ms": 10173,
+  "outputs": [
+    {
+      "path": "/Users/sotiris/Development/courses/AI performance engineering/homework-pub-booking/examples/ex7-handoff-bridge/sess_494a1be4f7fa/logs/tickets/tk_d6e50504/raw_output.json",
+      "sha256": "75284299895225951baf69d8877833cb8734bedf29e20efd46427af6b657e949",
+      "size_bytes": 915,
+      "content_type": "application/json"
+    }
+  ],
+  "metrics": {
+    "num_subgoals": 3,
+    "llm_tokens_in": 598,
+    "llm_tokens_out": 1674,
+    "llm_model": "Qwen/Qwen3-Next-80B-A3B-Thinking"
+  }
+}

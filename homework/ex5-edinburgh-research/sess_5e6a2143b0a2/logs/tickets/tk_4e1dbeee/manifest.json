@@ -1,0 +1,21 @@
+{
+  "ticket_id": "tk_4e1dbeee",
+  "operation": "planner.plan",
+  "started_at": "2026-05-17T21:21:43.747005+00:00",
+  "completed_at": "2026-05-17T21:22:18.542332+00:00",
+  "duration_ms": 34795,
+  "outputs": [
+    {
+      "path": "/Users/sotiris/Development/courses/AI performance engineering/homework-pub-booking/examples/ex5-edinburgh-research/sess_5e6a2143b0a2/logs/tickets/tk_4e1dbeee/raw_output.json",
+      "sha256": "c61f5c853ab06b1ff82a4dc10f2060462b60d60f87e3dc7c1836dbfbe12ea858",
+      "size_bytes": 2004,
+      "content_type": "application/json"
+    }
+  ],
+  "metrics": {
+    "num_subgoals": 5,
+    "llm_tokens_in": 848,
+    "llm_tokens_out": 5863,
+    "llm_model": "Qwen/Qwen3-Next-80B-A3B-Thinking"
+  }
+}

@@ -1,0 +1,8 @@
+{"event_type": "voice.utterance_in", "actor": "user", "timestamp": "2026-05-17T21:45:52.394604+00:00", "payload": {"text": "Hi. I'd like to make a reservation for 12", "turn": 0, "mode": "text"}}
+{"event_type": "voice.utterance_out", "actor": "manager", "timestamp": "2026-05-17T21:45:56.381146+00:00", "payload": {"text": "Sorry, too many. We cannae handle parties that size. Try The Royal Oak or Bennet's Bar, they might be able to accommodate ye.", "turn": 0, "mode": "text"}}
+{"event_type": "voice.utterance_in", "actor": "user", "timestamp": "2026-05-17T21:46:02.319127+00:00", "payload": {"text": "Can we do it then for 8?", "turn": 1, "mode": "text"}}
+{"event_type": "voice.utterance_out", "actor": "manager", "timestamp": "2026-05-17T21:46:05.145930+00:00", "payload": {"text": "Aye, we can do that. I'll pencil you in. What's the contact number?", "turn": 1, "mode": "text"}}
+{"event_type": "voice.utterance_in", "actor": "user", "timestamp": "2026-05-17T21:46:11.288769+00:00", "payload": {"text": "058358365464", "turn": 2, "mode": "text"}}
+{"event_type": "voice.utterance_out", "actor": "manager", "timestamp": "2026-05-17T21:46:13.029644+00:00", "payload": {"text": "Aye, we can do that. I'll pencil you in for the date and time. What's the date and time you're lookin' for?", "turn": 2, "mode": "text"}}
+{"event_type": "voice.utterance_in", "actor": "user", "timestamp": "2026-05-17T21:46:24.173350+00:00", "payload": {"text": "Friday 21:30", "turn": 3, "mode": "text"}}
+{"event_type": "voice.utterance_out", "actor": "manager", "timestamp": "2026-05-17T21:46:52.260934+00:00", "payload": {"text": "I'll pencil you in for Friday at 21:30. That's set.", "turn": 3, "mode": "text"}}

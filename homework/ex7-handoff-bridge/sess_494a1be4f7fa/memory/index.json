@@ -1,0 +1,259 @@
+{
+  "entries": [
+    {
+      "id": "venue_search_20260517_215004_947324",
+      "type": "episodic",
+      "path": "memory/episodic/venue_search_20260517_215004_947324.md",
+      "metadata": {
+        "tool": "venue_search",
+        "output": {
+          "near": "Haymarket",
+          "party_size": 12,
+          "budget_max_gbp": 1000,
+          "results": [
+            {
+              "id": "haymarket_tap",
+              "name": "Haymarket Tap",
+              "address": "12 Dalry Rd, Edinburgh EH11 2BG",
+              "area": "Haymarket",
+              "max_capacity": 8
+            }
+          ],
+          "count": 1
+        },
+        "arguments": {
+          "near": "Haymarket",
+          "party_size": 12,
+          "budget_max_gbp": 1000
+        },
+        "success": true,
+        "id": "venue_search_20260517_215004_947324",
+        "created_at": "2026-05-17T20:50:04.947508+00:00",
+        "updated_at": "2026-05-17T20:50:04.947508+00:00"
+      }
+    },
+    {
+      "id": "venue_search_20260517_215052_195470",
+      "type": "episodic",
+      "path": "memory/episodic/venue_search_20260517_215052_195470.md",
+      "metadata": {
+        "tool": "venue_search",
+        "output": {
+          "near": "Princes Street",
+          "party_size": 10,
+          "budget_max_gbp": 500,
+          "results": [],
+          "count": 0
+        },
+        "arguments": {
+          "near": "Princes Street",
+          "party_size": 10,
+          "budget_max_gbp": 500
+        },
+        "success": true,
+        "id": "venue_search_20260517_215052_195470",
+        "created_at": "2026-05-17T20:50:52.195672+00:00",
+        "updated_at": "2026-05-17T20:50:52.195672+00:00"
+      }
+    },
+    {
+      "id": "venue_search_20260517_215058_946239",
+      "type": "episodic",
+      "path": "memory/episodic/venue_search_20260517_215058_946239.md",
+      "metadata": {
+        "tool": "venue_search",
+        "output": {
+          "near": "Old Town",
+          "party_size": 10,
+          "budget_max_gbp": 1000,
+          "results": [
+            {
+              "id": "royal_oak",
+              "name": "The Royal Oak",
+              "address": "1 Infirmary St, Edinburgh EH1 1LT",
+              "area": "Old Town",
+              "max_capacity": 16
+            }
+          ],
+          "count": 1
+        },
+        "arguments": {
+          "near": "Old Town",
+          "party_size": 10,
+          "budget_max_gbp": 1000
+        },
+        "success": true,
+        "id": "venue_search_20260517_215058_946239",
+        "created_at": "2026-05-17T20:50:58.946417+00:00",
+        "updated_at": "2026-05-17T20:50:58.946417+00:00"
+      }
+    },
+    {
+      "id": "calculate_cost_20260517_215106_157129",
+      "type": "episodic",
+      "path": "memory/episodic/calculate_cost_20260517_215106_157129.md",
+      "metadata": {
+        "tool": "calculate_cost",
+        "output": {
+          "venue_id": "royal_oak",
+          "party_size": 10,
+          "duration_hours": 3,
+          "catering_tier": "bar_snacks",
+          "subtotal_gbp": 594,
+          "service_gbp": 59,
+          "total_gbp": 1103,
+          "deposit_required_gbp": 330
+        },
+        "arguments": {
+          "venue_id": "royal_oak",
+          "party_size": 10,
+          "duration_hours": 3,
+          "catering_tier": "bar_snacks"
+        },
+        "success": true,
+        "id": "calculate_cost_20260517_215106_157129",
+        "created_at": "2026-05-17T20:51:06.157291+00:00",
+        "updated_at": "2026-05-17T20:51:06.157291+00:00"
+      }
+    },
+    {
+      "id": "venue_search_20260517_215152_822274",
+      "type": "episodic",
+      "path": "memory/episodic/venue_search_20260517_215152_822274.md",
+      "metadata": {
+        "tool": "venue_search",
+        "output": {
+          "near": "1 Infirmary St, Edinburgh EH1 1LT",
+          "party_size": 8,
+          "budget_max_gbp": 1000,
+          "results": [
+            {
+              "id": "haymarket_tap",
+              "name": "Haymarket Tap",
+              "address": "12 Dalry Rd, Edinburgh EH11 2BG",
+              "area": "Haymarket",
+              "max_capacity": 8
+            },
+            {
+              "id": "royal_oak",
+              "name": "The Royal Oak",
+              "address": "1 Infirmary St, Edinburgh EH1 1LT",
+              "area": "Old Town",
+              "max_capacity": 16
+            }
+          ],
+          "count": 2
+        },
+        "arguments": {
+          "near": "1 Infirmary St, Edinburgh EH1 1LT",
+          "party_size": 8,
+          "budget_max_gbp": 1000
+        },
+        "success": true,
+        "id": "venue_search_20260517_215152_822274",
+        "created_at": "2026-05-17T20:51:52.822456+00:00",
+        "updated_at": "2026-05-17T20:51:52.822456+00:00"
+      }
+    },
+    {
+      "id": "primary_candidate_venue",
+      "type": "semantic",
+      "path": "memory/semantic/primary_candidate_venue.md",
+      "metadata": {
+        "key": "primary_candidate",
+        "value": "haymarket_tap",
+        "id": "primary_candidate_venue",
+        "created_at": "2026-05-17T20:51:52.833174+00:00",
+        "updated_at": "2026-05-17T20:51:52.833174+00:00"
+      }
+    },
+    {
+      "id": "target_venue_id",
+      "type": "semantic",
+      "path": "memory/semantic/target_venue_id.md",
+      "metadata": {
+        "key": "venue_id",
+        "value": "haymarket_tap",
+        "id": "target_venue_id",
+        "created_at": "2026-05-17T20:51:52.837638+00:00",
+        "updated_at": "2026-05-17T20:51:52.837638+00:00"
+      }
+    },
+    {
+      "id": "target_city",
+      "type": "semantic",
+      "path": "memory/semantic/target_city.md",
+      "metadata": {
+        "key": "city",
+        "value": "12 Dalry Rd, Edinburgh EH11 2BG",
+        "id": "target_city",
+        "created_at": "2026-05-17T20:51:52.841182+00:00",
+        "updated_at": "2026-05-17T20:51:52.841182+00:00"
+      }
+    },
+    {
+      "id": "calculate_cost_20260517_215221_877382",
+      "type": "episodic",
+      "path": "memory/episodic/calculate_cost_20260517_215221_877382.md",
+      "metadata": {
+        "tool": "calculate_cost",
+        "output": {
+          "venue_id": "haymarket_tap",
+          "party_size": 8,
+          "duration_hours": 3,
+          "catering_tier": "bar_snacks",
+          "subtotal_gbp": 432,
+          "service_gbp": 43,
+          "total_gbp": 675,
+          "deposit_required_gbp": 135
+        },
+        "arguments": {
+          "venue_id": "haymarket_tap",
+          "party_size": 8,
+          "duration_hours": 3,
+          "catering_tier": "bar_snacks"
+        },
+        "success": true,
+        "id": "calculate_cost_20260517_215221_877382",
+        "created_at": "2026-05-17T20:52:21.877561+00:00",
+        "updated_at": "2026-05-17T20:52:21.877561+00:00"
+      }
+    },
+    {
+      "id": "target_party_size",
+      "type": "semantic",
+      "path": "memory/semantic/target_party_size.md",
+      "metadata": {
+        "key": "party_size",
+        "value": 8,
+        "id": "target_party_size",
+        "created_at": "2026-05-17T20:52:21.882627+00:00",
+        "updated_at": "2026-05-17T20:52:21.882627+00:00"
+      }
+    },
+    {
+      "id": "target_deposit",
+      "type": "semantic",
+      "path": "memory/semantic/target_deposit.md",
+      "metadata": {
+        "key": "deposit",
+        "value": "\u00a3135",
+        "id": "target_deposit",
+        "created_at": "2026-05-17T20:52:21.886747+00:00",
+        "updated_at": "2026-05-17T20:52:21.886747+00:00"
+      }
+    },
+    {
+      "id": "structured_confirmed",
+      "type": "semantic",
+      "path": "memory/semantic/structured_confirmed.md",
+      "metadata": {
+        "key": "structured_confirmed",
+        "value": true,
+        "id": "structured_confirmed",
+        "created_at": "2026-05-17T20:52:30.009888+00:00",
+        "updated_at": "2026-05-17T20:52:30.009888+00:00"
+      }
+    }
+  ]
+}

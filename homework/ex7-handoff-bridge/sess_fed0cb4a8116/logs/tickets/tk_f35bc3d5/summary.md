@@ -1,0 +1,1 @@
+Executor completed subgoal sg_2 in 7 turn(s). Made 6 tool call(s): calculate_cost, calculate_cost, calculate_cost, calculate_cost, venue_search, calculate_cost.

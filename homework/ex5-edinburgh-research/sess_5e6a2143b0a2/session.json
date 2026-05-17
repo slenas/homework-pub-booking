@@ -1,0 +1,77 @@
+{
+  "session_id": "sess_5e6a2143b0a2",
+  "version": 1,
+  "created_at": "2026-05-17T21:21:43.434873+00:00",
+  "updated_at": "2026-05-17T21:22:18.547800+00:00",
+  "scenario": "edinburgh-research",
+  "state": "executing",
+  "user_id": null,
+  "current_half": "loop",
+  "planner": {
+    "subgoals": [
+      {
+        "id": "sg_1",
+        "description": "Search for venues near Haymarket station for 6 people with max budget \u00a3800. Note: complete_task must not be called before generate_flyer is completed.",
+        "success_criterion": "Venue ID is returned from the search",
+        "estimated_tool_calls": 1,
+        "depends_on": [],
+        "assigned_half": "loop",
+        "status": "pending"
+      },
+      {
+        "id": "sg_2",
+        "description": "Check weather in Edinburgh for April 25, 2026. Note: complete_task must not be called before generate_flyer is completed.",
+        "success_criterion": "Weather data for the specified date is retrieved",
+        "estimated_tool_calls": 1,
+        "depends_on": [
+          "sg_1"
+        ],
+        "assigned_half": "loop",
+        "status": "pending"
+      },
+      {
+        "id": "sg_3",
+        "description": "Calculate total cost for the selected venue with party size 6, 3-hour duration, and bar snacks catering. Note: complete_task must not be called before generate_flyer is completed.",
+        "success_criterion": "Total cost calculation is completed successfully",
+        "estimated_tool_calls": 1,
+        "depends_on": [
+          "sg_1"
+        ],
+        "assigned_half": "loop",
+        "status": "pending"
+      },
+      {
+        "id": "sg_4",
+        "description": "Generate HTML flyer with event details including time 19:30, venue information, weather, and cost. Note: complete_task must not be called before generate_flyer is completed.",
+        "success_criterion": "workspace/flyer.html file is created",
+        "estimated_tool_calls": 1,
+        "depends_on": [
+          "sg_1",
+          "sg_2",
+          "sg_3"
+        ],
+        "assigned_half": "loop",
+        "status": "pending"
+      },
+      {
+        "id": "sg_5",
+        "description": "Complete the task by calling complete_task with the flyer path. Note: complete_task must not be called before generate_flyer is completed.",
+        "success_criterion": "complete_task tool is executed successfully",
+        "estimated_tool_calls": 1,
+        "depends_on": [
+          "sg_4"
+        ],
+        "assigned_half": "loop",
+        "status": "pending"
+      }
+    ]
+  },
+  "executor": {},
+  "structured": {},
+  "memory": {},
+  "handoff_history": [],
+  "bare_mode": false,
+  "config_overrides": {},
+  "result": null,
+  "resumed_from": null
+}

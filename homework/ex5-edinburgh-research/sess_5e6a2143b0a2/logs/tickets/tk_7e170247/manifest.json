@@ -1,0 +1,20 @@
+{
+  "ticket_id": "tk_7e170247",
+  "operation": "executor.run_subgoal/sg_4",
+  "started_at": "2026-05-17T21:22:59.487199+00:00",
+  "completed_at": "2026-05-17T21:23:25.675549+00:00",
+  "duration_ms": 26188,
+  "outputs": [
+    {
+      "path": "/Users/sotiris/Development/courses/AI performance engineering/homework-pub-booking/examples/ex5-edinburgh-research/sess_5e6a2143b0a2/logs/tickets/tk_7e170247/raw_output.json",
+      "sha256": "3e9ecf6a92c8813e5a7abef0434b4ed11a20c15f5a3038c750cb0e5af42adb66",
+      "size_bytes": 2477,
+      "content_type": "application/json"
+    }
+  ],
+  "metrics": {
+    "tool_calls": 2,
+    "turns_used": 3,
+    "handoff_requested": false
+  }
+}

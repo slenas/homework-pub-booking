@@ -1,0 +1,53 @@
+{
+  "session_id": "sess_494a1be4f7fa",
+  "version": 1,
+  "created_at": "2026-05-17T20:49:49.490360+00:00",
+  "updated_at": "2026-05-17T20:51:44.721497+00:00",
+  "scenario": "ex7-handoff-bridge",
+  "state": "executing",
+  "user_id": null,
+  "current_half": "loop",
+  "planner": {
+    "subgoals": [
+      {
+        "id": "sg_1",
+        "description": "Search for venues near 1 Infirmary St, Edinburgh EH1 1LT with party size 8",
+        "success_criterion": "Returns at least one venue from the search",
+        "estimated_tool_calls": 1,
+        "depends_on": [],
+        "assigned_half": "loop",
+        "status": "pending"
+      },
+      {
+        "id": "sg_2",
+        "description": "Calculate cost for the selected venue with party size 8",
+        "success_criterion": "Deposit amount is successfully retrieved",
+        "estimated_tool_calls": 1,
+        "depends_on": [
+          "sg_1"
+        ],
+        "assigned_half": "loop",
+        "status": "pending"
+      },
+      {
+        "id": "sg_3",
+        "description": "Submit booking with adjusted party size 8",
+        "success_criterion": "handoff_to_structured is called with valid data",
+        "estimated_tool_calls": 1,
+        "depends_on": [
+          "sg_2"
+        ],
+        "assigned_half": "structured",
+        "status": "pending"
+      }
+    ]
+  },
+  "executor": {},
+  "structured": {},
+  "memory": {},
+  "handoff_history": [],
+  "bare_mode": false,
+  "config_overrides": {},
+  "result": null,
+  "resumed_from": null
+}

@@ -26,6 +26,7 @@ voice = [
   # MP3 decode (Rime returns MP3; stdlib only handles WAV).
   "pydub >= 0.25.1",
   "numpy >= 1.24",
+  "setuptools",
 ]
 rasa = [
   # Pulls in rasa_pro via sovereign-agent's own extra. Rasa Pro has

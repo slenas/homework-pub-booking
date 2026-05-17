@@ -1,0 +1,148 @@
+{
+  "entries": [
+    {
+      "id": "venue_search_20260517_222225_477705",
+      "type": "episodic",
+      "path": "memory/episodic/venue_search_20260517_222225_477705.md",
+      "metadata": {
+        "tool": "venue_search",
+        "output": {
+          "near": "Haymarket station",
+          "party_size": 6,
+          "budget_max_gbp": 800,
+          "results": [
+            {
+              "id": "haymarket_tap",
+              "name": "Haymarket Tap",
+              "address": "12 Dalry Rd, Edinburgh EH11 2BG",
+              "area": "Haymarket",
+              "max_capacity": 8
+            }
+          ],
+          "count": 1
+        },
+        "arguments": {
+          "near": "Haymarket station",
+          "party_size": 6,
+          "budget_max_gbp": 800
+        },
+        "success": true,
+        "id": "venue_search_20260517_222225_477705",
+        "created_at": "2026-05-17T21:22:25.477917+00:00",
+        "updated_at": "2026-05-17T21:22:25.477917+00:00"
+      }
+    },
+    {
+      "id": "primary_candidate_venue",
+      "type": "semantic",
+      "path": "memory/semantic/primary_candidate_venue.md",
+      "metadata": {
+        "key": "primary_candidate",
+        "value": "haymarket_tap",
+        "id": "primary_candidate_venue",
+        "created_at": "2026-05-17T21:22:25.486152+00:00",
+        "updated_at": "2026-05-17T21:22:25.486152+00:00"
+      }
+    },
+    {
+      "id": "target_venue_id",
+      "type": "semantic",
+      "path": "memory/semantic/target_venue_id.md",
+      "metadata": {
+        "key": "venue_id",
+        "value": "haymarket_tap",
+        "id": "target_venue_id",
+        "created_at": "2026-05-17T21:22:25.490314+00:00",
+        "updated_at": "2026-05-17T21:22:25.490314+00:00"
+      }
+    },
+    {
+      "id": "target_city",
+      "type": "semantic",
+      "path": "memory/semantic/target_city.md",
+      "metadata": {
+        "key": "city",
+        "value": "12 Dalry Rd, Edinburgh EH11 2BG",
+        "id": "target_city",
+        "created_at": "2026-05-17T21:22:25.493931+00:00",
+        "updated_at": "2026-05-17T21:22:25.493931+00:00"
+      }
+    },
+    {
+      "id": "get_weather_20260517_222238_263888",
+      "type": "episodic",
+      "path": "memory/episodic/get_weather_20260517_222238_263888.md",
+      "metadata": {
+        "tool": "get_weather",
+        "output": {
+          "condition": "cloudy",
+          "temperature_c": 12,
+          "precip_mm": 0.0,
+          "wind_kph": 15,
+          "city": "Edinburgh",
+          "date": "2026-04-25"
+        },
+        "arguments": {
+          "city": "Edinburgh",
+          "date": "2026-04-25"
+        },
+        "success": true,
+        "id": "get_weather_20260517_222238_263888",
+        "created_at": "2026-05-17T21:22:38.264109+00:00",
+        "updated_at": "2026-05-17T21:22:38.264109+00:00"
+      }
+    },
+    {
+      "id": "calculate_cost_20260517_222254_498265",
+      "type": "episodic",
+      "path": "memory/episodic/calculate_cost_20260517_222254_498265.md",
+      "metadata": {
+        "tool": "calculate_cost",
+        "output": {
+          "venue_id": "haymarket_tap",
+          "party_size": 6,
+          "duration_hours": 3,
+          "catering_tier": "bar_snacks",
+          "subtotal_gbp": 324,
+          "service_gbp": 32,
+          "total_gbp": 556,
+          "deposit_required_gbp": 111
+        },
+        "arguments": {
+          "venue_id": "haymarket_tap",
+          "party_size": 6,
+          "duration_hours": 3,
+          "catering_tier": "bar_snacks"
+        },
+        "success": true,
+        "id": "calculate_cost_20260517_222254_498265",
+        "created_at": "2026-05-17T21:22:54.498363+00:00",
+        "updated_at": "2026-05-17T21:22:54.498363+00:00"
+      }
+    },
+    {
+      "id": "target_party_size",
+      "type": "semantic",
+      "path": "memory/semantic/target_party_size.md",
+      "metadata": {
+        "key": "party_size",
+        "value": 6,
+        "id": "target_party_size",
+        "created_at": "2026-05-17T21:22:54.502895+00:00",
+        "updated_at": "2026-05-17T21:22:54.502895+00:00"
+      }
+    },
+    {
+      "id": "target_deposit",
+      "type": "semantic",
+      "path": "memory/semantic/target_deposit.md",
+      "metadata": {
+        "key": "deposit",
+        "value": "\u00a3111",
+        "id": "target_deposit",
+        "created_at": "2026-05-17T21:22:54.509156+00:00",
+        "updated_at": "2026-05-17T21:22:54.509156+00:00"
+      }
+    }
+  ]
+}
