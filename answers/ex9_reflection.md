@@ -4,28 +4,16 @@
 
 ### Your answer
 
-In my Ex7 run (session sess_a382a2149fc1), the planner's second
-subgoal was sg_2 "commit the booking under policy rules" with
-assigned_half: "structured". The signal that drove this was the task
-text naming a deterministic constraint — "under policy rules".
-Sovereign-agent's DefaultPlanner is prompted with the list of
-available halves and their purposes; when subgoal description
-mentions rules/policy/limits, the planner prefers structured.
+In my Ex7 run (session `sess_494a1be4f7fa`), the planner generated three subgoals in both Round 1 (`tk_d6e50504`) and Round 2 (`tk_daa46b98`). In both rounds, the third subgoal was to commit the booking via the structured half (`sg_3` "Commit the booking via handoff_to_structured with required data" / "Submit booking with adjusted party size 8") and was assigned to the `structured` half. 
 
-This decision is advisory, not physical. The orchestrator respects
-it only because both halves are wired up. If only a loop half
-existed (as in research_assistant), a subgoal assigned to structured
-would go to the void. That's failure mode #4 from the course slides.
+The signal that drove the planner to make this assignment was the task instruction to "commit" or "submit" the booking under policy rules. The LLM's system prompt specifies that the structured half is intended for processing strict rules and formal validations. Therefore, the planner correctly inferred that booking submission is a rule-bound execution task, assigning it to `structured`.
 
-The broader lesson: the planner makes an architectural decision
-based on prose interpretation. Put the rules somewhere the LLM
-cannot mis-assign — in the structured half's Python — and prose
-ambiguity no longer matters.
+This decision is advisory. The orchestrator only knows how to route execution between halves because we have implemented the cross-half IPC bridge. If the structured half were not present (or if the bridge were broken), a subgoal assigned to structured would simply be lost in transit, leading to a hang or crash. This highlights the importance of the handoff bridge as the physical runtime engine for the planner's high-level architectural designs.
 
 ### Citation
 
-- sessions/sess_a382a2149fc1/logs/tickets/tk_*/raw_output.json
-- sessions/sess_a382a2149fc1/logs/trace.jsonl:23
+- homework/ex7-handoff-bridge/sess_494a1be4f7fa/logs/tickets/tk_d6e50504/raw_output.json — Round 1 subgoal plan
+- homework/ex7-handoff-bridge/sess_494a1be4f7fa/logs/tickets/tk_daa46b98/raw_output.json — Round 2 subgoal plan
 
 ---
 
@@ -33,26 +21,16 @@ ambiguity no longer matters.
 
 ### Your answer
 
-During Ex5 development my integrity check caught a subtle fabrication
-that manual review missed. In session sess_de44a1b8eb12 the flyer
-claimed "Total: £560" and "Deposit: £112" — plausible numbers that
-followed the deposit formula in catering.json. I skimmed and moved on.
+During Ex5 development of session `sess_5e6a2143b0a2`, the flyer successfully generated a correct total cost of `£556` and deposit of `£111` matching the `calculate_cost` tool outputs. To evaluate the robustness of the dataflow check, we manually edited `flyer.html` inside the workspace directory, changing `£556` to a fabricated value of `£9999` and re-running the check standalone. 
 
-verify_dataflow returned ok=False with unverified_facts=['£560','£112'].
-The trace showed calculate_cost returned total_gbp=540, deposit=0. The
-real total was £540 under the £300 deposit threshold. The LLM had
-written "£560" plausibly — close enough that a human reviewer wouldn't
-notice without cross-referencing.
+The `verify_dataflow` function immediately flagged the modification, returning `ok=False` with `unverified_facts=['£9999']`. It caught the discrepancy because it audits every monetary and condition fact in the flyer against the exact in-memory `_TOOL_CALL_LOG` records populated by the tools, rather than just assessing if the number "looks reasonable." 
 
-The check caught it because it compared against ground truth in
-_TOOL_CALL_LOG, not against "does this look reasonable." The lesson
-generalises: if the validator would pass a human skim, plant a
-deliberately-weird value like £9999 and confirm it's caught.
+Without this programmatic check, a human developer or grading script would easily miss a minor hallucination (such as a total cost of £560 instead of £556) because the value falls within plausible ranges. Programmatic audit against verified tool call traces is the only reliable way to guarantee truth-first agent execution.
 
 ### Citation
 
-- sessions/sess_de44a1b8eb12/workspace/flyer.md:12
-- sessions/sess_de44a1b8eb12/logs/trace.jsonl:15
+- homework/ex5-edinburgh-research/sess_5e6a2143b0a2/workspace/flyer.html — flyer output file
+- homework/ex5-edinburgh-research/sess_5e6a2143b0a2/logs/trace.jsonl — tool call log of actual outputs
 
 ---
 
@@ -60,20 +38,13 @@ deliberately-weird value like £9999 and confirm it's caught.
 
 ### Your answer
 
-I'd keep session directories (Decision 1) as the last thing standing
-and rebuild everything else if forced. The forward-only state machine
-(Decision 2) is important but fragile without directories. Tickets
-(Decision 3) I could rebuild as .jsonl files inside the session.
-Atomic-rename IPC (Decision 5) is replaceable by directory polling.
+If forced to reduce the framework to its absolute minimum and keep only one primitive, I would choose session directories (Decision 1) as the irreplaceable foundation and rebuild everything else around it. 
 
-Session directories are the irreplaceable piece. Losing them:
-cross-tenant data leaks, reconstructing per-run state from logs,
-"how did this session end up this way" becomes SQL archaeology
-instead of cat. The slides compare it to git commits being the
-foundation — you can rebuild merge, diff, blame from commits but
-not commits from the rest. Session directories are commits.
+The forward-only state machine (Decision 2), tickets (Decision 3), and atomic-rename IPC (Decision 5) are all convenient abstractions, but they all depend on the existence of a clean, isolated local directory namespace. Without session directories, the system suffers from cross-session data leaks, race conditions, and an impossible auditing process where multi-agent traces are jumbled together. 
+
+Session directories are like git repositories; they provide a physical boundary and history. You can easily rebuild atomic renaming by using simple file lock checkers or directory polling inside a session directory, but you cannot reconstruct isolated, crash-resilient session states without the physical directory structure itself.
 
 ### Citation
 
-- sessions/sess_de44a1b8eb12/ — the directory itself
-- sessions/sess_a382a2149fc1/logs/trace.jsonl
+- homework/ex5-edinburgh-research/sess_5e6a2143b0a2/ — Ex5 session workspace directory structure
+- homework/ex7-handoff-bridge/sess_494a1be4f7fa/logs/trace.jsonl — isolated multi-round trace log

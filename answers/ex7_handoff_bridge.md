@@ -2,31 +2,17 @@
 
 ## Your answer
 
-The HandoffBridge orchestrates round-trips between the loop half and
-structured half. Each round: loop runs, if next_action=handoff_to_structured
-the bridge writes a forward handoff file, invokes structured, and then
-either marks the session complete (structured confirmed) or builds a
-reverse task and loops back (structured escalated).
+The HandoffBridge orchestrates the round-trip execution between the loop half and the structured half. In session `sess_494a1be4f7fa`, the orchestration ran for two complete rounds before completion:
+- Round 1: The loop half planned and executed its subgoals. It searched for Haymarket (party=12) and Old Town (party=10) and calculated a total cost of £1103 and a deposit of £330 for the Royal Oak. The bridge generated a forward handoff file and invoked the structured half.
+- Structured Rejection: The structured half (Rasa webhook) analyzed the booking payload and rejected it, stating: `party_too_large. The strict limit is 8 people.`
+- Escalation & Round 2: The bridge generated a reverse task using the rejection feedback, routing control back to the loop half. In Round 2, the loop half adjusted its search to a party size of 8 at the Haymarket Tap, calculating a cost of £675 and a deposit of £135. It handed off to structured again, which successfully confirmed the booking.
 
-The reverse-task path is the interesting one. On escalation, the
-bridge rewrites the initial_task into a dict that contains
-prior_result + rejection_reason + retry=True. The loop half sees
-this via the new executor invocation and — in a real LLM setting —
-would produce a different subgoal. In the scripted offline demo we
-hardcode the retry choice (royal_oak with 16 seats) so the test is
-deterministic.
+Every state transition between the halves (from loop to structured and vice versa) emitted a `session.state_changed` event with attributes such as `round` and `rejection_reason` or `status='confirmed'`. The integrity check validated that the session trace correctly recorded `bridge.round_start`, `session.state_changed`, and `executor.tool_called` events to guarantee that actual round-trip progress was achieved.
 
-Every half transition emits a session.state_changed trace event via
-session.append_trace_event(). The integrity check (integrity.py)
-verifies the trace has at least one round_start, at least one
-state_changed, and at least one tool call — catching the case where
-the bridge reports success without doing real work.
-
-The stale-handoff cleanup moves old ipc/handoff_to_structured.json
-files into logs/handoffs/ instead of deleting them, preserving the
-audit trail.
+Old handoff files were cleaned up by moving them to the `logs/handoffs/` directory instead of deleting them, ensuring a robust audit trail for debugging multi-half interactions.
 
 ## Citations
 
-- starter/handoff_bridge/bridge.py — HandoffBridge.run + helpers
-- starter/handoff_bridge/integrity.py — verify_dataflow
+- homework/ex7-handoff-bridge/sess_494a1be4f7fa/logs/trace.jsonl — full round-trip trace showing transitions and tool calls
+- starter/handoff_bridge/bridge.py — HandoffBridge implementation and state-switching logic
+- starter/handoff_bridge/integrity.py — round-trip integrity validator
